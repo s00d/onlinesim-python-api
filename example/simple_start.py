@@ -1,12 +1,21 @@
-from onlinesimru import GetFree
-import asyncio
+from onlinesimru import GetFree, GetForward, GetUser
 
-
-async def main():
+def main():
     client = GetFree('')
-    countries = await client.countries()
+    countries = client.countries()
     print(countries)
-    numbers = await client.numbers(7)
-    print(numbers)
+    # numbers = client.numbers(7)
+    # print(numbers)
 
-asyncio.run(main())
+    # messages = client.messages(9651622343)
+    # print(messages)
+
+    # client = GetForward('111111')
+    # service = client.service()
+    # print(service)
+
+    # client = GetUser('111111')
+    # balance = client.balance()
+    # print(balance)
+
+main()

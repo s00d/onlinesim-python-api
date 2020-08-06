@@ -2,11 +2,11 @@ from onlinesimru.api import Api
 
 
 class GetFree(Api):
-    async def countries(self):
-        return await self._get(f'/getFreeCountryList')
+    def countries(self):
+        return self._get(f'/getFreeCountryList')['countries']
 
-    async def numbers(self, country: int = 7):
-        return await self._get(f'/getFreePhoneList', {'country': country})
+    def numbers(self, country: int = 7):
+        return self._get(f'/getFreePhoneList', {'country': country})['numbers']
 
-    async def messages(self, phone: int, page: int = 1):
-        return await self._get(f'/getFreePhoneList', {'phone': phone, 'page': page})
+    def messages(self, phone: int, page: int = 1):
+        return self._get(f'/getFreeMessageList', {'phone': phone, 'page': page})['messages']['data']

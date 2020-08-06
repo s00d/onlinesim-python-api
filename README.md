@@ -23,31 +23,29 @@ $ pip install git+https://github.com/s00d/onlinesim-python-api
 ### Example
 ```python
 from onlinesimru import GetFree, GetRent, GetProxy, GetForward, GetUser, GetNumbers
-import asyncio
 
-async def main():
+def main():
     client = GetUser('YOUR_TOKEN')
-    balance = await client.balance()
+    balance = client.balance()
     print(balance)
 
-asyncio.get_event_loop().run_until_complete(main()) # asyncio.run(main()) для python 3.7+
+main()
 ```
 
 ### Example2
 ```python
 from onlinesimru import GetFree, GetRent, GetProxy, GetForward, GetUser, GetNumbers
-import asyncio
 
-async def main():
+def main():
     numbers = GetNumbers('YOUR_TOKEN')
     input('Press enter if you sms was sent')
 
-    tzid = await numbers.get('service')
+    tzid = numbers.get('service')
     print(tzid)
-    code = await numbers.wait_code(tzid)
+    code = numbers.wait_code(tzid)
     print(code)
 
-asyncio.get_event_loop().run_until_complete(main()) # asyncio.run(main()) для python 3.7+
+main()
 ```
 
 ## Documentation

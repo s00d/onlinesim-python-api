@@ -10,7 +10,7 @@ class NoNumberException(Error):
 
 
 class RequestException(Error):
-    def __init__(self, message):
+    def __init__(self, error: str, text: str = None):
         errors = {
             'ACCOUNT_BLOCKED': 'account blocked',
             'ERROR_WRONG_KEY': 'wrong apikey',
@@ -48,5 +48,8 @@ class RequestException(Error):
             'ERROR_NO_SERVICE_REPEAT': 'no services for repeated reception',
             'SERVICE_TO_NUMBER_EMPTY': 'no numbers for repeated reception for this service',
         }
-        self.message = errors.get(message)
-        self.e = message
+
+        if not text and errors.get(error):
+            raise RequestException(error, errors.get(error))
+        self.error = error
+        self.text = text
