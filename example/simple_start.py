@@ -1,8 +1,8 @@
-from onlinesimru import GetFree, GetForward, GetUser
+from onlinesimru import Driver
 
 def main():
-    client = GetFree('')
-    countries = client.countries()
+    driver = Driver('')
+    countries = driver.free().countries()
     print(countries)
     # numbers = client.numbers(7)
     # print(numbers)

@@ -48,6 +48,22 @@ def main():
 main()
 ```
 
+### Example3
+```python
+# multiple driver using
+from onlinesimru import Driver
+
+def main():
+    driver = Driver('YOUR_TOKEN')
+
+    tzid = driver.numbers().get('service')
+    print(tzid)
+    code = driver.numbers().wait_code(tzid)
+    print(code)
+
+main()
+```
+
 ## Documentation
 
 All documentation is in the wiki of this project - **[Documentation](https://github.com/s00d/onlinesim-python-api/wiki)**

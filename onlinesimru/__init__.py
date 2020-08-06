@@ -5,6 +5,7 @@ from .GetNumbers import GetNumbers
 from .GetProxy import GetProxy
 from .GetRent import GetRent
 from .GetUser import GetUser
+from .Driver import Driver
 
 __author__ = 's00d'
 __version__ = '1.0'
