@@ -15,11 +15,11 @@ class GetNumbers(Api):
             type = 'repeat'
         return self._get(f'/getState', {'message_to_code': message_to_code, 'orderby': orderby, 'msg_list': msg_list, 'clean': clean, 'type': type})
 
-    def stateOne(self, tzid: int, message_to_code: int = 1, orderby: str = 'ASC', msg_list: bool = True, clean: bool = True, repeat: bool = False):
+    def stateOne(self, tzid: int, message_to_code: int = 1, msg_list: bool = True, clean: bool = True, repeat: bool = False):
         type = 'index'
         if repeat:
             type = 'repeat'
-        return self._get(f'/getState', {'tzid': tzid, 'message_to_code': message_to_code, 'orderby': orderby, 'msg_list': msg_list, 'clean': clean, 'type': type})[0]
+        return self._get(f'/getState', {'tzid': tzid, 'message_to_code': message_to_code, 'msg_list': msg_list, 'clean': clean, 'type': type})[0]
 
     def next(self, tzid: int):
         return self._get(f'/setOperationRevise', {'tzid': tzid})
@@ -47,7 +47,7 @@ class GetNumbers(Api):
             counter += 1
             if counter >= 10:
                 raise ('Timeout error')
-            response = self.stateOne(tzid)
+            response = self.stateOne(tzid, 1, False)
             if response['code'] and not not_end and response['code'] != __last_code:
                 __last_code = response['code']
                 self.close(tzid)
