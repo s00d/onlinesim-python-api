@@ -12,8 +12,8 @@ class GetForward(Api):
     def stateOne(self, tzid: int, message_to_code: int = 1, orderby: str = 'ASC', msg_list: bool = True, clean: bool = True):
         return self._get(f'/getState', {'tzid': tzid, 'message_to_code': message_to_code, 'orderby': orderby, 'msg_list': msg_list, 'clean': clean, 'type': 'forward'})
 
-    def close(self, tzid: int, message_to_code: int = 1, orderby: str = 'ASC', msg_list: bool = True, clean: bool = True):
-        return self._get(f'/setOperationOk', {'tzid': tzid, 'message_to_code': message_to_code, 'orderby': orderby, 'msg_list': msg_list, 'clean': clean})
+    def close(self, tzid: int):
+        return self._get(f'/setOperationOk', {'tzid': tzid})
 
     def repeat(self, service: int, number: int):
         return self._get(f'/getNumRepeat', {'service': service, 'number': number})['tzid']

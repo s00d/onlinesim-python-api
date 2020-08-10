@@ -27,7 +27,7 @@ def requirements():
 
 setup(
     name='onlinesimru',
-    version='1.0.2',
+    version='1.0.3',
     long_description=long_description(),
     long_description_content_type='text/markdown',
     description='Wrapper for automatic reception of SMS-messages by onlinesim.ru',
