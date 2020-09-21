@@ -3,6 +3,11 @@ class Error(Exception):
     pass
 
 
+class TimeoutException(Error):
+    def __init__(self, error: str):
+        self.error = error
+
+
 class NoNumberException(Error):
     def __init__(self, expression, message):
         self.expression = expression

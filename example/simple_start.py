@@ -2,8 +2,8 @@ from onlinesimru import Driver
 
 def main():
     driver = Driver('')
-    countries = driver.free().countries()
-    print(countries)
+    data = driver.numbers().wait_code(tzid=23583470, timeout=1)
+    print(data)
     # numbers = client.numbers(7)
     # print(numbers)
 

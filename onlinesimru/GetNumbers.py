@@ -1,4 +1,6 @@
 from typing import List
+
+from onlinesimru.Extentions import TimeoutException
 from onlinesimru.api import Api
 import time
 
@@ -47,15 +49,16 @@ class GetNumbers(Api):
         counter = 0
         while True:
             time.sleep(timeout)
+            print(counter)
             counter += 1
             if counter >= 10:
-                raise ('Timeout error')
+                raise TimeoutException('Timeout error')
             response = self.stateOne(tzid, _response_type, False)
-            if response['msg'] and not not_end and response['msg'] != __last_code:
+            if 'msg' in response and not not_end and response['msg'] != __last_code:
                 __last_code = response['msg']
                 self.close(tzid)
                 break
-            elif response['msg'] and not_end and response['msg'] != __last_code:
+            elif 'msg' in response and not_end and response['msg'] != __last_code:
                 __last_code = response['msg']
                 self.next(tzid)
                 break
