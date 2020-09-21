@@ -49,7 +49,6 @@ class GetNumbers(Api):
         counter = 0
         while True:
             time.sleep(timeout)
-            print(counter)
             counter += 1
             if counter >= 10:
                 raise TimeoutException('Timeout error')
