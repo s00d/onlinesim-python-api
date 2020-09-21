@@ -39,8 +39,11 @@ class GetNumbers(Api):
     def serviceNumber(self, service: str):
         return self._get(f'/getServiceNumber', {'service': service})['number']
 
-    def wait_code(self, tzid: int, timeout=10, callback=None, not_end=False):
+    def wait_code(self, tzid: int, timeout=10, callback=None, not_end=False, full_message=False):
         __last_code: str = ''
+        _response_type: str = 'code'
+        if full_message:
+            _response_type = 'msg'
         counter = 0
         while True:
             time.sleep(timeout)
@@ -48,12 +51,12 @@ class GetNumbers(Api):
             if counter >= 10:
                 raise ('Timeout error')
             response = self.stateOne(tzid, 1, False)
-            if response['code'] and not not_end and response['code'] != __last_code:
-                __last_code = response['code']
+            if response[_response_type] and not not_end and response[_response_type] != __last_code:
+                __last_code = response[_response_type]
                 self.close(tzid)
                 break
-            elif response['code'] and not_end and response['code'] != __last_code:
-                __last_code = response['code']
+            elif response[_response_type] and not_end and response[_response_type] != __last_code:
+                __last_code = response[_response_type]
                 self.next(tzid)
                 break
         if callback:

@@ -5,7 +5,7 @@ from setuptools import setup
 @author: s00d
 @contact: https://github.com/s00d
 @license Apache License, Version 2.0, see LICENSE file
-Copyright (C) 2018
+Copyright (C) 2020
 """
 
 
@@ -27,7 +27,7 @@ def requirements():
 
 setup(
     name='onlinesimru',
-    version='1.0.4',
+    version='1.0.5',
     long_description=long_description(),
     long_description_content_type='text/markdown',
     description='Wrapper for automatic reception of SMS-messages by onlinesim.ru',

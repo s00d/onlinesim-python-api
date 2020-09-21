@@ -1,6 +1,5 @@
 # Onlinesim Python API
 
-
 Wrapper for automatic reception of SMS-messages by onlinesim.ru
 
 [![N|Solid](https://img.shields.io/pypi/pyversions/onlinesimru.svg)](https://pypi.python.org/pypi/onlinesimru)
