@@ -41,22 +41,22 @@ class GetNumbers(Api):
 
     def wait_code(self, tzid: int, timeout=10, callback=None, not_end=False, full_message=False):
         __last_code: str = ''
-        _response_type: str = 'code'
+        _response_type: int = 1
         if full_message:
-            _response_type = 'msg'
+            _response_type = 0
         counter = 0
         while True:
             time.sleep(timeout)
             counter += 1
             if counter >= 10:
                 raise ('Timeout error')
-            response = self.stateOne(tzid, 1, False)
-            if response[_response_type] and not not_end and response[_response_type] != __last_code:
-                __last_code = response[_response_type]
+            response = self.stateOne(tzid, _response_type, False)
+            if response['msg'] and not not_end and response['msg'] != __last_code:
+                __last_code = response['msg']
                 self.close(tzid)
                 break
-            elif response[_response_type] and not_end and response[_response_type] != __last_code:
-                __last_code = response[_response_type]
+            elif response['msg'] and not_end and response['msg'] != __last_code:
+                __last_code = response['msg']
                 self.next(tzid)
                 break
         if callback:
