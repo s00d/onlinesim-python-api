@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.5] - 2019-09-21
 ### Added
+- add ban
+
+## [1.0.5] - 2019-09-21
+### Added
 - full message
 
 ## [1.0.1] - 2019-08-06

@@ -29,6 +29,9 @@ class GetNumbers(Api):
     def close(self, tzid: int):
         return self._get(f'/setOperationOk', {'tzid': tzid})
 
+    def ban(self, tzid: int):
+        return self._get(f'/setOperationOk', {'tzid': tzid, 'ban': 1})
+
     def tariffs(self):
         return self._get(f'/getNumbersStats', {'country': 'all'})
 
