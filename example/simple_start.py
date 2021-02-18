@@ -11,10 +11,6 @@ def main():
     # messages = client.messages(9651622343)
     # print(messages)
 
-    # client = GetForward('111111')
-    # service = client.service()
-    # print(service)
-
     # client = GetUser('111111')
     # balance = client.balance()
     # print(balance)

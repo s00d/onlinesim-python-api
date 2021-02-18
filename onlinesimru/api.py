@@ -22,12 +22,13 @@ class Api:
     def _get(self, endpoint: str, params: dict = None):
         if params is None:
             params = {}
-        params["apikey"] = self.apikey
+        if self.apikey != "":
+            params["apikey"] = self.apikey
         params["lang"] = self.lang
         params["dev_id"] = self.dev_id
         payload = {k: v for k, v in params.items() if v is not None}
         response = httpx.get(
-            f"https://onlinesim.ru/api/" + endpoint + ".php",
+            f"https://onlinesim.ru/api" + endpoint + ".php",
             headers=self.headers,
             params=payload,
         )

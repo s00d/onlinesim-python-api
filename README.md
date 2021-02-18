@@ -21,7 +21,7 @@ $ pip install git+https://github.com/s00d/onlinesim-python-api
 ```
 ### Example
 ```python
-from onlinesimru import GetFree, GetRent, GetProxy, GetForward, GetUser, GetNumbers
+from onlinesimru import GetFree, GetRent, GetProxy, GetUser, GetNumbers
 
 def main():
     client = GetUser('YOUR_TOKEN')
@@ -33,7 +33,7 @@ main()
 
 ### Example2
 ```python
-from onlinesimru import GetFree, GetRent, GetProxy, GetForward, GetUser, GetNumbers
+from onlinesimru import GetFree, GetRent, GetProxy, GetUser, GetNumbers
 
 def main():
     numbers = GetNumbers('YOUR_TOKEN')

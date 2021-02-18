@@ -1,11 +1,8 @@
-from onlinesimru import GetForward, GetFree, GetNumbers, GetProxy, GetRent, GetUser
+from onlinesimru import GetFree, GetNumbers, GetProxy, GetRent, GetUser
 from .api import Api
 
 
 class Driver(Api):
-    def forward(self):
-        return GetForward(self.apikey, self.lang, self.lang)
-
     def free(self):
         return GetFree(self.apikey, self.lang, self.lang)
 
