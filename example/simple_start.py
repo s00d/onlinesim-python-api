@@ -1,7 +1,8 @@
 from onlinesimru import Driver
 
+
 def main():
-    driver = Driver('')
+    driver = Driver("")
     data = driver.numbers().wait_code(tzid=23583470, timeout=1)
     print(data)
     # numbers = client.numbers(7)
@@ -17,5 +18,6 @@ def main():
     # client = GetUser('111111')
     # balance = client.balance()
     # print(balance)
+
 
 main()
