@@ -105,11 +105,12 @@ class GetNumbers(Api):
             if counter >= 10:
                 raise TimeoutException("Timeout error")
             response = self.stateOne(tzid, _response_type, False)
-            if "msg" in response and not not_end and response["msg"] != __last_code:
+            print(response)
+            if "msg" in response and not not_end and response["msg"] != __last_code and response["msg"] != False:
                 __last_code = response["msg"]
                 self.close(tzid)
                 break
-            elif "msg" in response and not_end and response["msg"] != __last_code:
+            elif "msg" in response and not_end and response["msg"] != __last_code and response["msg"] != False:
                 __last_code = response["msg"]
                 self.next(tzid)
                 break
