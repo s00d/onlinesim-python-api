@@ -1,9 +1,9 @@
 name: Python publish
 
 on:
-  release:
-    branches:
-      - main
+  push:
+    tags:
+    - 'v*'
 
 jobs:
   build:
