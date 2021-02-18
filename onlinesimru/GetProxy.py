@@ -2,6 +2,9 @@ from onlinesimru.api import Api
 
 
 class GetProxy(Api):
+    def tariffs(self):
+        return self._get(f"/proxy/tariffs", {"country": "all"})
+
     def get(
         self,
         cl: str = "days",
