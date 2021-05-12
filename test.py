@@ -15,6 +15,10 @@ class TestSum(unittest.TestCase):
         self.assertIsNotNone(data)
         self.assertTrue('7' in data)
 
+        data = driver.numbers().tariffsOne(7)
+        self.assertIsNotNone(data)
+        self.assertEqual(data['code'], 7)
+
     def test_proxy(self):
         driver = Driver("90b7beba2e36054e19ec87ec1855ca46")
         data = driver.proxy().tariffs()

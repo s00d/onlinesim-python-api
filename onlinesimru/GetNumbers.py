@@ -15,16 +15,22 @@ class GetNumbers(Api):
         country: int = 7,
         reject: List[int] = None,
         extension: bool = False,
+        number: bool = False,
     ):
-        return self._get(
+        _response = self._get(
             f"/getNum",
             {
                 "service": service,
                 "country": country,
                 "reject": reject,
                 "extension": extension,
+                "number": True,
             },
-        )["tzid"]
+        )
+        if number:
+            return {"number": _response['number'], "country": country, "service": service, "tzid": _response['tzid']}
+
+        return _response["tzid"]
 
     def state(
         self,
