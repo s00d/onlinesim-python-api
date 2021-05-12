@@ -90,15 +90,30 @@ class GetNumbers(Api):
 
     def serviceNumber(self, service: str):
         return self._get(f"/getServiceNumber", {"service": service})["number"]
+    
+    def getNumberFrom_tzid(self, tzid: int):
+        response = self.stateOne(tzid, 1, False)
+        print(f"[!] The phone-number is: [[{response['number']}]], country code is [[{response['country']}]].")
+        
+        numberJson_ = {
+            'phoneNumber': response['number'],
+            'Country_Code': response['country'],
+        }
+        return numberJson_
 
-    def wait_code(
-        self, tzid: int, timeout=10, callback=None, not_end=False, full_message=False
-    ):
+    def wait_code(self, tzid: int, timeout=10, callback=None, not_end=False, full_message=False):
+        
         __last_code: str = ""
         _response_type: int = 1
         if full_message:
             _response_type = 0
         counter = 0
+        
+        
+        response = self.stateOne(tzid, 1, False)
+        print(f"[!] Attention! Reminder the phone-number is: [[{response['number']}]], country code is [[{response['country']}]].")
+        
+        
         while True:
             time.sleep(timeout)
             counter += 1
