@@ -51,6 +51,7 @@ setup(
     download_url="https://github.com/s00d/onlinesim-python-api/archive/master.zip",
     packages=["onlinesimru"],
     install_requires=requirements(),
+    setup_requires=['wheel'],
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
