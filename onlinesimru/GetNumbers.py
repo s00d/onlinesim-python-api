@@ -17,7 +17,7 @@ class GetNumbers(Api):
         extension: bool = False,
         number: bool = False,
     ):
-        _response = self._get(
+        _response = self._post(
             f"/getNum",
             {
                 "service": service,
