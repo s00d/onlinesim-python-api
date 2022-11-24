@@ -30,7 +30,7 @@ class GetNumbers(Api):
         if number:
             return {"number": _response['number'], "country": country, "service": service, "tzid": _response['tzid']}
 
-        return _response["tzid"] , _response["number"]
+        return _response["tzid"]
 
     def state(
         self,
