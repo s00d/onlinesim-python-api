@@ -27,9 +27,9 @@ class TestSum(unittest.TestCase):
 
     def test_rent(self):
         driver = Driver("90b7beba2e36054e19ec87ec1855ca46")
-        data = driver.rent().get_tariffs()
+        data = driver.rent().get_tariff()
         self.assertIsNotNone(data)
-        self.assertTrue('7' in data)
+        self.assertTrue(data.code == 7)
 
     def test_user(self):
         driver = Driver("90b7beba2e36054e19ec87ec1855ca46")
