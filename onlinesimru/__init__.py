@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-from .GetFree import GetFree
-from .GetNumbers import GetNumbers
-from .GetProxy import GetProxy
-from .GetRent import GetRent
-from .GetUser import GetUser
-from .Driver import Driver
+from onlinesimru.services.free_numbers_service import FreeNumbersService
+from onlinesimru.services.temp_numbers_service import TempNumbersService
+from onlinesimru.services.proxy_service import ProxyService
+from onlinesimru.services.rent_numbers_service import RentNumbersService
+from onlinesimru.services.user_service import UserService
+from .driver import Driver
 from ._version import __version__
 
 

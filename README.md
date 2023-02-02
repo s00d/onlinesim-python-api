@@ -21,23 +21,28 @@ $ python setup.py install
 $ pip install git+https://github.com/s00d/onlinesim-python-api
 ```
 ### Example
+
 ```python
-from onlinesimru import GetFree, GetRent, GetProxy, GetUser, GetNumbers
+from onlinesimru import FreeNumbersService, RentNumbersService, ProxyService, UserService, TempNumbersService
+
 
 def main():
-    client = GetUser('YOUR_TOKEN')
+    client = UserService('YOUR_TOKEN')
     balance = client.balance()
     print(balance)
+
 
 main()
 ```
 
 ### Example2
+
 ```python
-from onlinesimru import GetFree, GetRent, GetProxy, GetUser, GetNumbers
+from onlinesimru import FreeNumbersService, RentNumbersService, ProxyService, UserService, TempNumbersService
+
 
 def main():
-    numbers = GetNumbers('YOUR_TOKEN')
+    numbers = TempNumbersService('YOUR_TOKEN')
     input('Press enter if you sms was sent')
 
     tzid = numbers.get('service')
@@ -45,21 +50,25 @@ def main():
     code = numbers.wait_code(tzid)
     print(code)
 
+
 main()
 ```
 
 ### Example3
+
 ```python
 # multiple driver using
 from onlinesimru import Driver
 
+
 def main():
     driver = Driver('YOUR_TOKEN')
 
-    tzid = driver.numbers().get('service')
+    tzid = driver.temp_numbers().get('service')
     print(tzid)
-    code = driver.numbers().wait_code(tzid)
+    code = driver.temp_numbers().wait_code(tzid)
     print(code)
+
 
 main()
 ```

@@ -1,14 +1,14 @@
-from onlinesimru.api import Api
+from onlinesimru.api import API
 
 
-class GetFree(Api):
-    def countries(self):
+class FreeNumbersService(API):
+    def get_countries(self):
         return self._get(f"/getFreeCountryList")["countries"]
 
-    def numbers(self, country: int = 7):
+    def get_numbers(self, country: int = 7):
         return self._get(f"/getFreePhoneList", {"country": country})["numbers"]
 
-    def messages(self, phone: int, page: int = 1):
+    def get_messages(self, phone: int, page: int = 1):
         return self._get(f"/getFreeMessageList", {"phone": phone, "page": page})[
             "messages"
         ]["data"]

@@ -6,16 +6,16 @@ from onlinesimru import Driver
 class TestSum(unittest.TestCase):
     def test_free(self):
         driver = Driver("90b7beba2e36054e19ec87ec1855ca46")
-        data = driver.free().countries()
+        data = driver.free().get_countries()
         self.assertIsNotNone(data)
 
     def test_numbers(self):
         driver = Driver("90b7beba2e36054e19ec87ec1855ca46")
-        data = driver.numbers().tariffs()
+        data = driver.temp_numbers().tariffs()
         self.assertIsNotNone(data)
         self.assertTrue('7' in data)
 
-        data = driver.numbers().tariffsOne(7)
+        data = driver.temp_numbers().tariffsOne(7)
         self.assertIsNotNone(data)
         self.assertEqual(data['code'], 7)
 
@@ -27,7 +27,7 @@ class TestSum(unittest.TestCase):
 
     def test_rent(self):
         driver = Driver("90b7beba2e36054e19ec87ec1855ca46")
-        data = driver.rent().tariffs()
+        data = driver.rent().get_tariffs()
         self.assertIsNotNone(data)
         self.assertTrue('7' in data)
 

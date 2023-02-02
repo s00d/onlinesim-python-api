@@ -10,9 +10,10 @@ class TimeoutException(Error):
 
 
 class NoNumberException(Error):
-    def __init__(self, expression, message):
+    def __init__(self, expression=None, message=None):
         self.expression = expression
         self.message = message
+        super().__init__()
 
 
 class RequestException(Error):
@@ -33,11 +34,14 @@ class RequestException(Error):
             "TZ_OVER_OK": "operation has been completed",
             "ERROR_NO_TZID": "tzid is not specified",
             "ERROR_NO_OPERATIONS": "no operations",
-            "ACCOUNT_IDENTIFICATION_REQUIRED": "You have to go through an identification process: to order a messenger - in any way, for forward - on the passport.",
-            "EXCEEDED_CONCURRENT_OPERATIONS": "maximum quantity of numbers booked concurrently is exceeded for your account",
+            "ACCOUNT_IDENTIFICATION_REQUIRED": "You have to go through an identification process: "
+                                               "to order a messenger - in any way, for forward - on the passport.",
+            "EXCEEDED_CONCURRENT_OPERATIONS": "maximum quantity of numbers booked concurrently "
+                                              "is exceeded for your account",
             "NO_NUMBER": "temporarily no numbers available for the selected service",
             "TIME_INTERVAL_ERROR": "delayed SMS reception is not possible at this interval of time",
-            "INTERVAL_CONCURRENT_REQUESTS_ERROR": "maximum quantity of concurrent requests for number issue is exceeded, try again later",
+            "INTERVAL_CONCURRENT_REQUESTS_ERROR": "maximum quantity of concurrent requests for "
+                                                  "number issue is exceeded, try again later",
             "TRY_AGAIN_LATER": "temporarily unable to perform the request",
             "NO_FORWARD_FOR_DEFFER": "forwarding can be activated only for online reception",
             "NO_NUMBER_FOR_FORWARD": "there are no numbers for forwarding",

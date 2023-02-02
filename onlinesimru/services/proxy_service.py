@@ -1,7 +1,7 @@
-from onlinesimru.api import Api
+from onlinesimru.api import API
 
 
-class GetProxy(Api):
+class ProxyService(API):
     def tariffs(self):
         return self._get(f"/proxy/tariffs", {"country": "all"})
 
