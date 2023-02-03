@@ -54,6 +54,22 @@ class RentNumbersService(API):
         number_data = self.get_number(tzid)
         return number_data.messages
 
+    def get_number_by_phone_number(self, phone_number: str) -> Optional[RentNumber]:
+        if not phone_number.startswith('+'):
+            phone_number = f'+{phone_number}'
+
+        all_numbers = self.get_numbers()
+        result = list(
+            filter(
+                lambda number: f'+{number.country}{number.number}' == phone_number,
+                all_numbers
+            )
+        )
+
+        if result:
+            return result[0]
+        return None
+
     def get_number(self, tzid: int) -> RentNumber:
         try:
             return RentNumber(**self._get(f"/rent/getRentState", {"tzid": tzid, "pagination": False})["list"][0])
