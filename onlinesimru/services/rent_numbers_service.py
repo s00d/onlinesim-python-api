@@ -22,7 +22,7 @@ class RentNumbersService(API):
 
             last_message = self.get_last_message(tzid=tzid)
 
-            if last_message.code != last_code:
+            if last_message and last_message.code != last_code:
                 last_code = last_message.code
                 break
 
