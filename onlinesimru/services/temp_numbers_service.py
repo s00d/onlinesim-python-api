@@ -5,7 +5,7 @@ from onlinesimru.api import API
 import time
 
 
-class TempNumbersService(API):
+class NumbersService(API):
     def price(self, service: str):
         return self._get(f"/getPrice", {"service": service})["price"]
 

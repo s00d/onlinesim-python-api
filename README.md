@@ -23,7 +23,7 @@ $ pip install git+https://github.com/s00d/onlinesim-python-api
 ### Example
 
 ```python
-from onlinesimru import FreeNumbersService, RentNumbersService, ProxyService, UserService, TempNumbersService
+from onlinesimru import FreeNumbersService, RentNumbersService, ProxyService, UserService, NumbersService
 
 
 def main():
@@ -38,11 +38,11 @@ main()
 ### Example2
 
 ```python
-from onlinesimru import FreeNumbersService, RentNumbersService, ProxyService, UserService, TempNumbersService
+from onlinesimru import FreeNumbersService, RentNumbersService, ProxyService, UserService, NumbersService
 
 
 def main():
-    numbers = TempNumbersService('YOUR_TOKEN')
+    numbers = NumbersService('YOUR_TOKEN')
     input('Press enter if you sms was sent')
 
     tzid = numbers.get('service')
@@ -64,9 +64,9 @@ from onlinesimru import Driver
 def main():
     driver = Driver('YOUR_TOKEN')
 
-    tzid = driver.temp_numbers().get('service')
+    tzid = driver.numbers().get('service')
     print(tzid)
-    code = driver.temp_numbers().wait_code(tzid)
+    code = driver.numbers().wait_code(tzid)
     print(code)
 
 

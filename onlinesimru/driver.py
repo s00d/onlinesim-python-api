@@ -1,4 +1,4 @@
-from onlinesimru import FreeNumbersService, TempNumbersService, ProxyService, RentNumbersService, UserService
+from onlinesimru import FreeNumbersService, NumbersService, ProxyService, RentNumbersService, UserService
 from .api import API
 
 
@@ -6,8 +6,8 @@ class Driver(API):
     def free(self):
         return FreeNumbersService(self.apikey, self.lang, self.lang)
 
-    def temp_numbers(self):
-        return TempNumbersService(self.apikey, self.lang, self.lang)
+    def numbers(self):
+        return NumbersService(self.apikey, self.lang, self.lang)
 
     def proxy(self):
         return ProxyService(self.apikey, self.lang, self.lang)

@@ -11,11 +11,11 @@ class TestSum(unittest.TestCase):
 
     def test_numbers(self):
         driver = Driver("90b7beba2e36054e19ec87ec1855ca46")
-        data = driver.temp_numbers().tariffs()
+        data = driver.numbers().tariffs()
         self.assertIsNotNone(data)
         self.assertTrue('7' in data)
 
-        data = driver.temp_numbers().tariffsOne(7)
+        data = driver.numbers().tariffsOne(7)
         self.assertIsNotNone(data)
         self.assertEqual(data['code'], 7)
 
