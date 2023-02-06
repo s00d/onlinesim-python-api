@@ -1,7 +1,6 @@
 from dataclasses import dataclass
-from dacite import from_dict
-from onlinesimru.api import Api
-from typing import List, Dict, Optional, Union
+from onlinesimru.api import API
+from typing import List, Optional, Union
 
 
 @dataclass
@@ -37,7 +36,7 @@ class Balance:
     income: float
 
 
-class GetUser(Api):
+class UserService(API):
     def balance(self):
         # return from_dict(data_class=Balance, data=self._get(f'/getBalance', {'income': True}))
         return self._get(f"/getBalance", {"income": True})

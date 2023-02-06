@@ -1,11 +1,11 @@
 from typing import List
 
-from onlinesimru.Extentions import TimeoutException
-from onlinesimru.api import Api
+from onlinesimru.exceptions import TimeoutException
+from onlinesimru.api import API
 import time
 
 
-class GetNumbers(Api):
+class NumbersService(API):
     def price(self, service: str):
         return self._get(f"/getPrice", {"service": service})["price"]
 
