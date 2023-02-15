@@ -1,5 +1,5 @@
 from os import path
-from setuptools import setup
+from setuptools import setup, find_packages
 import re
 
 """
@@ -49,7 +49,7 @@ setup(
     author_email="suppport@onlinesim.ru",
     url="https://github.com/s00d/onlinesim-python-api",
     download_url="https://github.com/s00d/onlinesim-python-api/archive/master.zip",
-    packages=["onlinesimru"],
+    packages=find_packages(),
     install_requires=requirements(),
     setup_requires=['wheel'],
     classifiers=[
