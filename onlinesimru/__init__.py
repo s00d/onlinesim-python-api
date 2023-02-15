@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from onlinesimru.services.free_numbers_service import FreeNumbersService
-from onlinesimru.services.temp_numbers_service import NumbersService
-from onlinesimru.services.proxy_service import ProxyService
-from onlinesimru.services.rent_numbers_service import RentNumbersService
-from onlinesimru.services.user_service import UserService
+from .services.free_numbers_service import FreeNumbersService
+from .services.temp_numbers_service import NumbersService
+from .services.proxy_service import ProxyService
+from .services.rent_numbers_service import RentNumbersService
+from .services.user_service import UserService
 from .driver import Driver
 from ._version import __version__
 
