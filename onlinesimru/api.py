@@ -34,7 +34,7 @@ class API:
         payload = self.__get_payload(params=params)
 
         response = httpx.get(
-            f"https://onlinesim.ru/api" + endpoint + ".php",
+            f"https://onlinesim.host/api" + endpoint + ".php",
             headers=self.headers,
             params=payload,
         )
@@ -50,7 +50,7 @@ class API:
         payload = self.__get_payload(params=params)
 
         response = httpx.post(
-            f"https://onlinesim.ru/api" + endpoint + ".php",
+            f"https://onlinesim.host/api" + endpoint + ".php",
             headers=self.headers,
             json=payload,
         )
