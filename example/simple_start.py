@@ -2,8 +2,8 @@ from onlinesimru import Driver
 
 
 def main():
-    driver = Driver("")
-    data = driver.numbers().wait_code(tzid=23583470, timeout=1)
+    driver = Driver("cbdbaabd86197f20c99805e21a413fe5")
+    data = driver.numbers().wait_code(tzid=3014928, timeout=1)
     print(data)
     # numbers = client.numbers(7)
     # print(numbers)
