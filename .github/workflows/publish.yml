@@ -8,6 +8,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     environment:
       name: release
       url: https://pypi.org/p/onlinesimru
