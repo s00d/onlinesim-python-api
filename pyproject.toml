@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "onlinesimru"
+version = "2.1.0"
+description = "Wrapper for automatic reception of SMS-messages by onlinesim.ru"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "s00d", email = "suppport@onlinesim.ru"}
+]
+maintainers = [
+    {name = "s00d", email = "suppport@onlinesim.ru"}
+]
+keywords = ["sms", "receive", "onlinesim-ru", "autoreg"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Communications",
+    "Topic :: Internet",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "httpx",
+    "dacite",
+    "pydantic>=1.10.0,<3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/s00d/onlinesim-python-api"
+Documentation = "https://github.com/s00d/onlinesim-python-api/wiki"
+Repository = "https://github.com/s00d/onlinesim-python-api"
+"Bug Tracker" = "https://github.com/s00d/onlinesim-python-api/issues"
+Download = "https://github.com/s00d/onlinesim-python-api/archive/master.zip"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["onlinesimru*"]
+
+[tool.setuptools.package-data]
+onlinesimru = ["*.pyi", "py.typed"]

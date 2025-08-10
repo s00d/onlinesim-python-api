@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Updated pydantic dependency to support both v1 and v2 (>=1.10.0,<3.0.0)
 - Enhanced test infrastructure with pytest, pytest-cov, and pytest-mock
+- Migrated from setup.py to modern pyproject.toml configuration
+- Replaced legacy setuptools with modern build system
+- Updated GitHub Actions workflow to use modern actions and PyPI API tokens
 
 
 ## [2.0.1] - 2022-02-06
