@@ -3,7 +3,7 @@
 Wrapper for automatic reception of SMS-messages by onlinesim.ru
 
 [![N|Solid](https://img.shields.io/pypi/pyversions/onlinesimru.svg)](https://pypi.python.org/pypi/onlinesimru)
-![Python publish](https://github.com/s00d/onlinesim-python-api/workflows/Python%20publish/badge.svg)
+![Publish to PyPI](https://github.com/s00d/onlinesim-python-api/workflows/Publish%20to%20PyPI/badge.svg)
 
 ### Installation
 You can install or upgrade package with:
