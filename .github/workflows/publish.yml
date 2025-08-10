@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'  # Запускается при создании тега v*
 
+permissions:
+  id-token: write  # Необходимо для Trusted Publisher (OpenID Connect)
+  contents: read   # Необходимо для чтения кода репозитория
+
 jobs:
   publish:
     runs-on: ubuntu-latest
