@@ -16,5 +16,4 @@ To run specific test file:
     python -m pytest tests/integration_tests.py -v
 """
 
-__version__ = "1.0.0"
 __author__ = "Test Suite"

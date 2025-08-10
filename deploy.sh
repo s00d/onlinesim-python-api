@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Получаем версию из файла
-value=`cat onlinesimru/_version.py  | cut -d '"' -f 2`
+# Получаем версию из pyproject.toml
+value=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
 echo "Версия: $value"
 
 # Создаем git тег

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrated from setup.py to modern pyproject.toml configuration
 - Replaced legacy setuptools with modern build system
 - Updated GitHub Actions workflow to use modern actions and PyPI API tokens
+- Centralized version management in pyproject.toml, removed _version.py
 
 
 ## [2.0.1] - 2022-02-06
