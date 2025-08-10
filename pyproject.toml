@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "onlinesimru"
-version = "2.1.1"
+version = "2.1.2"
 description = "Wrapper for automatic reception of SMS-messages by onlinesim.ru"
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 authors = [
     {name = "s00d", email = "suppport@onlinesim.ru"}
 ]
@@ -16,7 +16,6 @@ maintainers = [
 ]
 keywords = ["sms", "receive", "onlinesim-ru", "autoreg"]
 classifiers = [
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Environment :: Console",
     "Development Status :: 4 - Beta",

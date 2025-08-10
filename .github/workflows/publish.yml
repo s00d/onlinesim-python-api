@@ -9,7 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     environment:
-      name: pypi
+      name: release
       url: https://pypi.org/p/onlinesimru
     
     steps:
@@ -30,9 +30,13 @@ jobs:
         python -m build --wheel --sdist
     
     - name: Publish to PyPI
+      # Для настройки Trusted Publisher:
+      # 1. Перейдите по ссылке из предупреждения в логах
+      # 2. Войдите в PyPI как владелец пакета
+      # 3. Подтвердите настройку Trusted Publisher
+      # 4. Используйте среду 'release' (не 'pypi')
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        password: ${{ secrets.PYPI_API_TOKEN }}
         skip-existing: true
     
     - name: Create Release
