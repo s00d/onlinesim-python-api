@@ -5,45 +5,34 @@ on:
     tags:
       - 'v*'  # Запускается при создании тега v*
 
-permissions:
-  id-token: write  # Необходимо для Trusted Publisher (OpenID Connect)
-  contents: read   # Необходимо для чтения кода репозитория
-
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
     environment:
-      name: release
+      name: pypi
       url: https://pypi.org/p/onlinesimru
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install build twine
-    
+
     - name: Build package
       run: |
         python -m build --wheel --sdist
-    
+
     - name: Publish to PyPI
-      # Для настройки Trusted Publisher:
-      # 1. Перейдите по ссылке из предупреждения в логах
-      # 2. Войдите в PyPI как владелец пакета
-      # 3. Подтвердите настройку Trusted Publisher
-      # 4. Используйте среду 'release' (не 'pypi')
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
         skip-existing: true
     
     - name: Create Release
