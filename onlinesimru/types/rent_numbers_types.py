@@ -1,6 +1,17 @@
 from typing import List, Any, Dict, Optional
 
-from pydantic import BaseModel
+# Pydantic compatibility for both v1 and v2
+try:
+    from pydantic import BaseModel
+    PYDANTIC_V2 = True
+except ImportError:
+    try:
+        from pydantic.v1 import BaseModel
+        PYDANTIC_V2 = False
+    except ImportError:
+        # Fallback for very old versions
+        from pydantic import BaseModel
+        PYDANTIC_V2 = False
 
 
 class Message(BaseModel):

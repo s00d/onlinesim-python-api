@@ -10,12 +10,13 @@ logger = logging.getLogger(__name__)
 
 
 class API:
-    __slots__ = ("apikey", "lang", "dev_id", "headers")
+    __slots__ = ("apikey", "lang", "dev_id", "headers", "base_url")
 
-    def __init__(self, apikey: str = "", lang: str = "en", dev_id: str = None):
+    def __init__(self, apikey: str = "", lang: str = "en", dev_id: str = None, base_url: str = "https://onlinesim.host"):
         self.apikey = apikey
         self.dev_id = dev_id
         self.lang = lang
+        self.base_url = base_url.rstrip('/')  # Убираем trailing slash если есть
         self.headers = {
             "User-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/84.0.4147.89 Safari/537.36"
@@ -34,7 +35,7 @@ class API:
         payload = self.__get_payload(params=params)
 
         response = httpx.get(
-            f"https://onlinesim.host/api" + endpoint + ".php",
+            f"{self.base_url}/api{endpoint}.php",
             headers=self.headers,
             params=payload,
         )
@@ -50,7 +51,7 @@ class API:
         payload = self.__get_payload(params=params)
 
         response = httpx.post(
-            f"https://onlinesim.host/api" + endpoint + ".php",
+            f"{self.base_url}/api{endpoint}.php",
             headers=self.headers,
             json=payload,
         )
