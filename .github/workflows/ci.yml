@@ -38,13 +38,25 @@ jobs:
         run: python -m pip install mypy
       - run: python -m pytest
 
-  build:
-    runs-on: ubuntu-latest
+  # Package linters on the built artifact, then the artifact itself installed into a fresh venv on the floor
+  # (3.9) and the latest Python, running the README "Testing" example against MockOnlineSim.
+  # ubuntu-22.04: setup-python has no 3.9 build for the newest ubuntu-latest image.
+  package:
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
-      - run: python -m pip install build twine
+          # The last one is the default `python`.
+          python-version: |
+            3.9
+            3.13
+      - run: python -m pip install build twine check-wheel-contents pyroma
       - run: python -m build
       - run: python -m twine check --strict dist/*
+      - run: check-wheel-contents dist/*.whl
+      - run: pyroma --min 10 dist/*.tar.gz
+      - name: smoke from artifact (python 3.13)
+        run: python tests/smoke_artifact.py dist
+      - name: smoke from artifact (python 3.9)
+        run: python3.9 tests/smoke_artifact.py dist

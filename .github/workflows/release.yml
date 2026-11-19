@@ -1,0 +1,65 @@
+name: release
+
+# Push a version tag (`vX.Y.Z`, equal to the version in pyproject.toml) to publish to PyPI and create the
+# GitHub release. PyPI trusted publishing (OIDC): the PyPI project trusts this workflow file (`release.yml`)
+# and the `release` environment; no API token is stored.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/p/onlinesimru
+    permissions:
+      contents: write # gh release create
+      id-token: write # PyPI trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Check the tag matches the package version
+        id: version
+        run: |
+          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          test "v${version}" = "${GITHUB_REF_NAME}" || { echo "::error::tag ${GITHUB_REF_NAME} != v${version}"; exit 1; }
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          python -m pip install build
+          python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            echo "release ${GITHUB_REF_NAME} exists, skipped"
+            exit 0
+          fi
+          # The CHANGELOG.md section of this version: from `## [X.Y.Z]` up to the next `## ` heading.
+          awk -v head="## [${VERSION}]" 'index($0, head) == 1 { found = 1; next } found && /^## / { exit } found' \
+            CHANGELOG.md > "${RUNNER_TEMP}/notes.md"
+          test -s "${RUNNER_TEMP}/notes.md" || { echo "::error::no CHANGELOG.md section for ${VERSION}"; exit 1; }
+          gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --latest --notes-file "${RUNNER_TEMP}/notes.md"

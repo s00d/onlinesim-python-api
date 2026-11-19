@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0]
+
+### Added
+- `MockOnlineSim`: a built-in, in-process fake of the OnlineSim API for testing integrations offline — no network, key, money or clock. `mock.client()` returns a normal `OnlineSim` wired to it (`mock.transport` is the fake transport). It answers every endpoint the SDK calls like the real backend (HTTP 456 for a wrong key, string/int `response`, decimal-string money, `[]` for empty maps) and keeps balance, operations and rents. Test helpers: `add_sms`, `add_sms_after` (lets `wait_code` run with `interval=0`), `fail_next`, `fail_next_transport`, `set_balance`, `balance`, `operations`, `rents`, `requests`, `reset`. Part of the main package (`from onlinesimru import MockOnlineSim`). See the [testing guide](https://s00d.github.io/onlinesim-python-api/testing).
+- Packaging checks in CI: `twine check --strict`, `check-wheel-contents`, `pyroma` (10/10), and a smoke test that installs the built wheel into a fresh venv and runs the README "Testing" example on Python 3.9 and 3.13.
+- Releases are published by `.github/workflows/release.yml` with PyPI trusted publishing (OIDC, no API token) and get a GitHub release with the changelog section.
+
 ## [3.0.0]
 
 A rewrite. The public API changed; see the [docs](https://s00d.github.io/onlinesim-python-api/).
