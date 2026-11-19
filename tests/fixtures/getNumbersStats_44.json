@@ -1,0 +1,29 @@
+{
+  "name": "united_kingdom",
+  "position": 3,
+  "code": 44,
+  "other": 0.63,
+  "new": false,
+  "enabled": true,
+  "services": {
+    "service_vkcom": {
+      "count": 363,
+      "popular": false,
+      "code": 44,
+      "price": 0.36,
+      "id": 1,
+      "service": "VK",
+      "slug": "vkcom"
+    },
+    "service_3223": {
+      "count": 106,
+      "popular": false,
+      "code": 44,
+      "price": 1,
+      "id": 2,
+      "service": "Facebook",
+      "slug": "3223"
+    }
+  },
+  "locale_name": "United Kingdom"
+}

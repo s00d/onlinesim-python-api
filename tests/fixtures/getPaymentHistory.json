@@ -1,0 +1,49 @@
+{
+  "response": "1",
+  "orders": {
+    "current_page": 1,
+    "data": [
+      {
+        "id": 9462,
+        "id_user": 1,
+        "stat": 2,
+        "sum": "89.00",
+        "cashback": 1,
+        "form": 0,
+        "id_sale": "1164",
+        "client_id": "",
+        "promo": null,
+        "original_sum": 0,
+        "currency": "USD",
+        "driver_name": "unknown",
+        "merchant_name": "cashout",
+        "is_subscription": false,
+        "subscription_package_id": null,
+        "image": "default.svg",
+        "pay_at": null,
+        "created_at": "2026-06-14 09:12:12",
+        "updated_at": "2026-11-17 11:33:37",
+        "form_text": "cashout",
+        "status_text": "Оплачен"
+      }
+    ],
+    "first_page_url": "https://onlinesim.host/api/getPaymentHistory.php?page=1",
+    "from": 1,
+    "last_page": 11,
+    "last_page_url": "https://onlinesim.host/api/getPaymentHistory.php?page=1",
+    "links": [],
+    "next_page_url": "https://onlinesim.host/api/getPaymentHistory.php?page=1",
+    "path": "https://onlinesim.host/api/getPaymentHistory.php",
+    "per_page": 10,
+    "prev_page_url": null,
+    "to": 10,
+    "total": 106
+  },
+  "paylist": [],
+  "domains": [
+    "on-io.test"
+  ],
+  "currency": {
+    "USD": 1
+  }
+}

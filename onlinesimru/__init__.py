@@ -1,40 +1,94 @@
-# -*- coding: utf-8 -*-
-import os
-import re
-from .services.free_numbers_service import FreeNumbersService
-from .services.temp_numbers_service import NumbersService
-from .services.proxy_service import ProxyService
-from .services.rent_numbers_service import RentNumbersService
-from .services.user_service import UserService
-from .driver import Driver
+"""Typed, zero-dependency Python client for the OnlineSim API."""
 
-# Читаем версию из pyproject.toml
-def get_version():
-    try:
-        # Получаем путь к pyproject.toml
-        # Ищем pyproject.toml в текущей директории или выше
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # Поднимаемся вверх по дереву директорий, ища pyproject.toml
-        while current_dir != os.path.dirname(current_dir):
-            pyproject_path = os.path.join(current_dir, 'pyproject.toml')
-            if os.path.exists(pyproject_path):
-                with open(pyproject_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                # Ищем строку version = "X.X.X"
-                match = re.search(r'^version\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
-                if match:
-                    return match.group(1)
-            
-            current_dir = os.path.dirname(current_dir)
-            
-    except (FileNotFoundError, IOError, AttributeError, UnicodeDecodeError):
-        pass
-    
-    # Fallback версия
-    return "2.1.0"
+from .client import (
+    DEFAULT_BASE_URL,
+    HttpRequest,
+    HttpResponse,
+    OnlineSim,
+    QueryValue,
+    RequestFn,
+    Transport,
+    __version__,
+    urllib_transport,
+)
+from .errors import ERROR_MESSAGES, ApiError, NoNumberError, OnlineSimError, TimeoutError, TransportError
+from .free import FreeApi
+from .models import (
+    Balance,
+    CountryStat,
+    FreeCountry,
+    FreeList,
+    FreeMessage,
+    FreeMessages,
+    FreeNumber,
+    NumberOrder,
+    Operation,
+    OperationSms,
+    OperationStatus,
+    Paginator,
+    PaymentHistory,
+    PaymentOrder,
+    PaymentOrders,
+    Profile,
+    RentItem,
+    RentSms,
+    RentTariff,
+    ServiceStat,
+    WebhookLog,
+    WebhookLogs,
+    WebhookPayload,
+    WebhookType,
+)
+from .numbers import NumbersApi
+from .rent import RentApi
+from .user import UserApi
+from .wait import wait_code
+from .webhook import parse_webhook
 
-__author__ = "s00d"
-__version__ = get_version()
-__contact__ = "https://github.com/s00d"
+__all__ = [
+    "DEFAULT_BASE_URL",
+    "ERROR_MESSAGES",
+    "ApiError",
+    "Balance",
+    "CountryStat",
+    "FreeApi",
+    "FreeCountry",
+    "FreeList",
+    "FreeMessage",
+    "FreeMessages",
+    "FreeNumber",
+    "HttpRequest",
+    "HttpResponse",
+    "NoNumberError",
+    "NumberOrder",
+    "NumbersApi",
+    "OnlineSim",
+    "OnlineSimError",
+    "Operation",
+    "OperationSms",
+    "OperationStatus",
+    "Paginator",
+    "PaymentHistory",
+    "PaymentOrder",
+    "PaymentOrders",
+    "Profile",
+    "QueryValue",
+    "RentApi",
+    "RentItem",
+    "RentSms",
+    "RentTariff",
+    "RequestFn",
+    "ServiceStat",
+    "TimeoutError",
+    "Transport",
+    "TransportError",
+    "UserApi",
+    "WebhookLog",
+    "WebhookLogs",
+    "WebhookPayload",
+    "WebhookType",
+    "__version__",
+    "parse_webhook",
+    "urllib_transport",
+    "wait_code",
+]
