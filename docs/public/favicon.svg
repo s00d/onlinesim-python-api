@@ -1,0 +1,5 @@
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OnlineSim">
+  <path d="M8 3h11l7 7v17a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" fill="#32ba8c"/>
+  <rect x="10" y="14" width="12" height="10" rx="1.5" fill="#fff"/>
+  <path d="M14 14v10M18 14v10M10 19h12" stroke="#32ba8c" stroke-width="1.2"/>
+</svg>

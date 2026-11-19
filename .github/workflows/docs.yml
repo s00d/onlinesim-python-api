@@ -1,0 +1,50 @@
+name: docs
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'docs/**'
+      - 'CHANGELOG.md'
+      - '.github/workflows/docs.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # @nuxt/content uses node:sqlite (Node >= 22.5)
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - run: npm ci
+
+      - name: Build docs (Nuxt generate)
+        env:
+          NUXT_APP_BASE_URL: /onlinesim-python-api/
+        run: npm run build
+
+      - name: Add nojekyll
+        run: '> .output/public/.nojekyll'
+
+      - name: Deploy to GitHub Pages
+        uses: crazy-max/ghaction-github-pages@v4
+        with:
+          target_branch: gh-pages
+          build_dir: docs/.output/public
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

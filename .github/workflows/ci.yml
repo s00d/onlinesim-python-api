@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_call:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+
+  test:
+    name: test (python ${{ matrix.python }})
+    # setup-python has no 3.9 build for the newest ubuntu-latest image; 22.04 still ships it.
+    runs-on: ${{ matrix.python == '3.9' && 'ubuntu-22.04' || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.9', '3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      # mypy (used by the docs-examples test) is installed where it supports the runtime; elsewhere that test skips.
+      - run: python -m pip install -e . pytest
+      - if: matrix.python != '3.9'
+        run: python -m pip install mypy
+      - run: python -m pytest
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install build twine
+      - run: python -m build
+      - run: python -m twine check --strict dist/*

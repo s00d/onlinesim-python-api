@@ -1,0 +1,28 @@
+{
+  "name": "onlinesim-python-api-docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Documentation site of onlinesim-python-api (Nuxt Content).",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt generate",
+    "preview": "npx serve .output/public",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.150",
+    "@iconify-json/simple-icons": "^1.2.101",
+    "@nuxt/content": "3.16.2",
+    "@nuxt/ui": "^4.12.0",
+    "better-sqlite3": "^12.11.1",
+    "nuxt": "^4.6.4",
+    "nuxt-llms": "^0.3.1",
+    "tailwindcss": "^4.3.4"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vue-tsc": "^3.3.14"
+  }
+}
