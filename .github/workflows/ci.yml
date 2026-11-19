@@ -21,7 +21,8 @@ jobs:
 
   test:
     name: test (python ${{ matrix.python }})
-    runs-on: ubuntu-latest
+    # setup-python has no 3.9 build for the newest ubuntu-latest image; 22.04 still ships it.
+    runs-on: ${{ matrix.python == '3.9' && 'ubuntu-22.04' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
