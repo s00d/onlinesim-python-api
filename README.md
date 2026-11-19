@@ -25,4 +25,21 @@ print(f"enter {order['number']} in the app")
 print("code:", client.numbers.wait_code(order["tzid"]))
 ```
 
+## Testing
+
+`MockOnlineSim` is a built-in offline fake of the API: test your integration without network, key or money.
+More in the [testing guide](https://s00d.github.io/onlinesim-python-api/testing).
+
+```python
+from onlinesimru import MockOnlineSim
+
+mock = MockOnlineSim(balance=10)
+client = mock.client()
+
+tzid = client.numbers.get("google", 44)
+mock.add_sms_after(tzid, "Your code: 123-456", 2)  # arrives on the third poll
+assert client.numbers.wait_code(tzid, interval=0) == "123456"
+assert mock.balance() == 9.8
+```
+
 Documentation: **https://s00d.github.io/onlinesim-python-api/** · Changes: [CHANGELOG.md](CHANGELOG.md) · License: Apache-2.0

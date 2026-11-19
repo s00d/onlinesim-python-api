@@ -2,10 +2,14 @@
 title: Changelog
 description: Release notes of onlinesim-python-api (PyPI onlinesimru).
 navigation:
-  order: 6
+  order: 7
 ---
 
 The full history is in [CHANGELOG.md](https://github.com/s00d/onlinesim-python-api/blob/master/CHANGELOG.md).
+
+## 3.1.0
+
+- New: `MockOnlineSim`, an offline fake of the API for your tests — see [Testing](/testing).
 
 ## 3.0.0
 

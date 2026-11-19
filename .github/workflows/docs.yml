@@ -39,7 +39,7 @@ jobs:
         run: npm run build
 
       - name: Add nojekyll
-        run: '> .output/public/.nojekyll'
+        run: touch .output/public/.nojekyll
 
       - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v4
