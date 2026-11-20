@@ -27,6 +27,8 @@ class FakeNumbers:
             raise step
         op: Operation = {"tzid": tzid, "response": "TZ_NUM_WAIT"}
         op.update(step)  # type: ignore[typeddict-item]
+        if op.get("response") is None:  # a step with `"response": None`: the key is absent
+            del op["response"]
         return op
 
     def close(self, tzid: int) -> bool:
@@ -102,7 +104,27 @@ def test_retries_transient_transport_error() -> None:
     assert t.log == ["state 7 code=True", "sleep 5", "state 7 code=True", "close 7"]
 
 
-def test_api_error_raised_at_once() -> None:
+@pytest.mark.parametrize("code", ["TRY_AGAIN_LATER", "ERROR_UNDEFINED", "INTERVAL_CONCURRENT_REQUESTS_ERROR"])
+def test_retries_transient_api_error(code: str) -> None:
+    t = FakeNumbers([ApiError(code), {"msg": "42"}])
+    assert t.wait() == "42"
+    assert t.log == ["state 7 code=True", "sleep 5", "state 7 code=True", "close 7"]
+
+
+def test_retryable_api_error_still_times_out() -> None:
+    t = FakeNumbers([ApiError("TRY_AGAIN_LATER") for _ in range(10)])
+    with pytest.raises(TimeoutError):
+        t.wait(interval=5, timeout=10)
+    assert t.now == 10
+
+
+def test_operation_without_response_keeps_polling() -> None:
+    t = FakeNumbers([{"response": None}, {"msg": "77"}])
+    assert t.wait() == "77"
+    assert t.log == ["state 7 code=True", "sleep 5", "state 7 code=True", "close 7"]
+
+
+def test_other_api_error_raised_at_once() -> None:
     t = FakeNumbers([ApiError("ERROR_NO_OPERATIONS")])
     with pytest.raises(ApiError) as info:
         t.wait()

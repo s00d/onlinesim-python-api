@@ -69,7 +69,8 @@ class MockOnlineSim:
         :param balance: Starting balance, USD.
         :param prices: Number prices, country -> service -> USD; replaces the defaults.
         :param rent_tariffs: Rent tariffs, country -> ``{"days": {days: USD}, "extend": 0|1}``; replaces the defaults.
-        :param guard_interval: Seconds. ``> 0``: an operation without SMS cannot be closed (``NO_COMPLETE_TZID``).
+        :param guard_interval: Seconds. ``> 0``: an operation without SMS, or an unconfirmed rent without any SMS,
+            cannot be closed (``NO_COMPLETE_TZID``).
         """
         self._state = MockState(
             api_key=api_key, balance=balance, prices=prices, rent_tariffs=rent_tariffs, guard_interval=guard_interval
@@ -112,8 +113,12 @@ class MockOnlineSim:
         handler = ROUTES.get(req.path)
         if handler is None:
             return _text(404, "Not Found")
-        if req.path not in PUBLIC_PATHS and _authorization(request.headers) != f"Bearer {state.api_key}":
+        # A wrong key is HTTP 456 (public endpoints check a sent key too); no key at all is HTTP 200.
+        auth = _authorization(request.headers)
+        if auth is not None and auth != f"Bearer {state.api_key}":
             return _json({"response": "ERROR_WRONG_KEY"}, 456)
+        if auth is None and req.path not in PUBLIC_PATHS:
+            return _json({"response": "ERROR_WRONG_KEY"})
         return _json(handler(state, req))
 
     def add_sms(self, tzid: int, text: str, *, service: Optional[str] = None) -> None:

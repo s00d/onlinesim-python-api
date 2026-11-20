@@ -155,7 +155,8 @@ class OnlineSim:
             raise TransportError(
                 f"HTTP {response.status}: response is not JSON", response.status, text[:_BODY_EXCERPT]
             ) from None
-        # The body is checked before the status: a wrong key is HTTP 456 with {"response":"ERROR_WRONG_KEY"}.
+        # The body is checked before the status: a wrong key is HTTP 456 with {"response":"ERROR_WRONG_KEY"},
+        # the rate limit HTTP 429 with {"response":"TRY_AGAIN_LATER"}.
         if isinstance(payload, dict) and "response" in payload:
             return _unwrap(payload)
         if not 200 <= response.status < 300:
@@ -177,7 +178,7 @@ def _unwrap(payload: Dict[str, Any]) -> Dict[str, Any]:
     # Debug backends echo the code as `message`; prefer the readable fallback then.
     message = rest.get("message")
     message = message if isinstance(message, str) and message != code else None
-    if code in ("NO_NUMBER", "NO_NUMBER_FOR_FORWARD"):
+    if code == "NO_NUMBER":
         raise NoNumberError(code, message)
     raise ApiError(code, message)
 

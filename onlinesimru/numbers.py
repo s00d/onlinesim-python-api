@@ -67,7 +67,8 @@ class NumbersApi:
         return True
 
     def ban(self, tzid: int) -> bool:
-        """Finish the operation and report the number as bad (only before any SMS arrived)."""
+        """Finish the operation and report the number as bad. After an SMS arrived nothing changes and
+        ``ApiError("0")`` is raised."""
         self._request("setOperationOk.php", {"tzid": tzid, "ban": True})
         return True
 

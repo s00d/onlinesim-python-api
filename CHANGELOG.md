@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1]
+
+Aligned with the regenerated backend API spec.
+
+### Fixed
+- `numbers.wait_code` no longer crashes with `KeyError` on a getState operation without `response` (absent while no number is issued); it keeps polling.
+- Types: `Profile["number"]` is `int | None` and `Profile["country"]` is `str | None` (they were swapped); `Operation["response"]` is optional; `RentSms["code"]` is `str | int` (the integer `0` for a `notify` SMS, returned as sent); `FreeCountry` `country_text`/`country_original`, `FreeNumber["country_original"]`, `PaymentOrder` `currency`/`form_text` accept `None`.
+- `user.payment_history()` no longer drops `paylist` when the server sends it as a JSON array (ids 0, 1, 2…); it is returned as sent.
+- `numbers.wait_code` retries `ApiError` `TRY_AGAIN_LATER` (HTTP 429 rate limit), `ERROR_UNDEFINED` and `INTERVAL_CONCURRENT_REQUESTS_ERROR` until its timeout instead of raising at once.
+- Error messages: `"0"` (ban not applied, the operation already has an SMS), `ACCOUNT_CLEANED`, `USER_NOT_ACTIVATED`, `ERROR_UNDEFINED`, `FORWARD_NOT_SUPPORTED` added; `ERROR_NO_KEY`, `NO_NUMBER_FOR_FORWARD`, `ACCOUNT_IDENTIFICATION_REQUIRED`, `API_DISABLED` (no longer sent) removed; `NoNumberError` only for `NO_NUMBER`; `ERROR_WRONG_KEY` reads "Wrong or missing API key".
+- `MockOnlineSim` follows the backend: `setOperationRevise` answers `{"tzid":"N","response":"1"}` and `ERROR_WRONG_TZID` / `ERROR_NO_TZID`; `setOperationOk` tzid `0` → `ERROR_NO_TZID`; a missing key is HTTP 200 `ERROR_WRONG_KEY` (456 only for a wrong key, also on public endpoints); `getNum` with `number` adds `title`, `response_text`, `guard_interval_remaining_seconds`. Rent: `getRentNum` reserves the price (`status` 0) and the first non-`notify` SMS confirms and charges it, unknown country → `UNDEFINED_COUNTRY`, `sum` a number in getRentNum/extendRentState and a string in getRentState, `guard_interval_remaining_seconds` with `number`; `extendRentState` refusals are all `TRY_AGAIN_LATER`; `closeRentNum` unknown tzid → `ERROR_NO_OPERATIONS`, releases the reservation of an unconfirmed rent. Webhook-log params: `code` `""` without a code, rent `number` in full digits, rent `time_left` in minutes, `time_start` per type. `profile.php` accepts any `scheme://…` URL. `getPaymentHistory` adds `forms`/`buttons`; `getFreeList` lists 44 first, clamps `count` to 10..500, sends ISO-8601 `created_at` and `ignore`/`content`. `MockRent` gained `initial_days` and `status`, `MockSms` gained `at`.
+- Docs: rent reservation and `sum`, available = balance − max(zbalance, 0), `ban` answer `"0"`, webhook `number`/`time_left`/`time_start`, the `wait_code` retry policy, the mock's behaviour.
+
 ## [3.1.0]
 
 ### Added

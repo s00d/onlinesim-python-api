@@ -45,9 +45,9 @@ HTTPServer(("", 8080), Hook).serve_forever()
 | `operation_id` | `int \| None` | `tzid` of the operation or rent. |
 | `user_id` | `int \| None` | Account id. |
 | `country_code` | `int \| None` | Country code of the number. |
-| `number` | `str \| None` | The number, e.g. `+79001234567`. |
+| `number` | `str \| None` | Numbers: `+` and the full number (`+79001234567`), or `hidden`. Rent: the full number in digits without `+` (`79001234567`). |
 | `sender` | `str \| None` | Sender of the SMS, e.g. `VK`. |
 | `message` | `str \| None` | Full SMS text. |
-| `code` | `str \| None` | Code extracted from the SMS. |
-| `time_start` | `str \| None` | Start of the operation. |
-| `time_left` | `int \| None` | Time left. |
+| `code` | `str \| None` | Code extracted from the SMS; `""` when none was found. |
+| `time_start` | `str \| None` | Numbers: when the operation was ordered. Rent: when the SMS arrived. `YYYY-MM-DD HH:MM:SS`. |
+| `time_left` | `int \| None` | Time left: seconds for numbers, minutes for rent. |

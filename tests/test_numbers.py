@@ -124,3 +124,26 @@ def test_tariffs_one_no_country() -> None:
     with pytest.raises(ApiError) as info:
         client.numbers.tariffs_one(999)
     assert info.value.code == "NO_COUNTRY"
+
+
+def test_ban_after_sms_answers_0() -> None:
+    client, _ = fake_client(Reply({"response": "0"}))
+    with pytest.raises(ApiError) as info:
+        client.numbers.ban(1520)
+    assert (info.value.code, info.value.message) == ("0", "Ban not applied: the operation already has an SMS")
+
+
+def test_next_string_answer_and_wrong_tzid() -> None:
+    client, _ = fake_client(Reply({"tzid": "1520", "response": "1"}), Reply({"response": "ERROR_WRONG_TZID"}))
+    assert client.numbers.next(1520) is True
+    with pytest.raises(ApiError) as info:
+        client.numbers.next(1)
+    assert info.value.code == "ERROR_WRONG_TZID"
+
+
+def test_state_one_without_response() -> None:
+    op = {"tzid": 5, "country": 7, "service": "vkcom", "sum": 0.5, "time": 900, "form": "index"}
+    client, _ = fake_client(Reply([op]))
+    got = client.numbers.state_one(5)
+    assert got["tzid"] == 5
+    assert "response" not in got

@@ -1,8 +1,9 @@
 """Wire types.
 
 They mirror the schemas of the OnlineSim OpenAPI spec (snake_case field names as sent by the server), with these
-client-side normalisations: decimal-string money (``balance``, rent ``sum``) becomes a number, and maps the server
-may send as an empty PHP array ``[]`` become ``{}``. Keys of the ``total=False`` parts may be absent.
+client-side normalisations: decimal-string money (``balance``, rent ``sum`` in ``rent.state``) becomes a number, and
+maps the server may send as an empty PHP array ``[]`` become ``{}`` (``payment_history()["paylist"]`` is left as sent:
+a JSON array when its ids are 0, 1, 2...). Keys of the ``total=False`` parts may be absent.
 """
 
 from __future__ import annotations
@@ -26,12 +27,13 @@ class OperationSms(TypedDict, total=False):
 
 class _OperationRequired(TypedDict):
     tzid: int
-    response: OperationStatus
 
 
 class Operation(_OperationRequired, total=False):
     """Number operation (getState item)."""
 
+    response: OperationStatus
+    """Absent when no number could be issued."""
     number: str
     service: str
     country: int
@@ -100,8 +102,11 @@ class CountryStat(_CountryStatRequired, total=False):
 class RentSms(TypedDict):
     id: int
     service: str
+    """Sender. ``notify``: a notice about a prohibited sender (does not confirm the rent); ``init``: record of a rent
+    confirmed at once."""
     text: str
-    code: str
+    code: Union[str, int]
+    """Code found in the text, ``""`` when none; the integer ``0`` for a ``notify`` SMS."""
     created_at: str
 
 
@@ -111,7 +116,8 @@ class _RentItemRequired(TypedDict):
     number: str
     country: int
     sum: float
-    """Price paid, USD (parsed from the server's decimal string)."""
+    """Cost of the rent incl. extensions, USD (the server sends a number or a decimal string). Reserved while
+    ``status`` is 0, charged once confirmed."""
     days: int
     hours: int
     time: int
@@ -167,9 +173,9 @@ class RentTariff(_RentTariffRequired, total=False):
 
 class _BalanceRequired(TypedDict):
     balance: float
-    """Total balance, USD. Includes ``zbalance``: available = balance - zbalance."""
+    """Total balance, USD. Includes ``zbalance``: available = balance - max(zbalance, 0)."""
     zbalance: float
-    """Sum frozen by numbers in progress."""
+    """Sum frozen by numbers and rents in progress; may be negative."""
 
 
 class Balance(_BalanceRequired, total=False):
@@ -195,8 +201,8 @@ class Profile(_ProfileRequired, total=False):
     number_country: Optional[int]
     number_reject: Union[List[str], Dict[str, str], None]
     webhook_url: Optional[str]
-    number: Optional[str]
-    country: Optional[int]
+    number: Optional[int]
+    country: Optional[str]
     number_region: Optional[int]
     is_api: bool
     active: str
@@ -243,9 +249,9 @@ class PaymentOrder(TypedDict, total=False):
     id: int
     sum: str
     """Decimal string, e.g. ``"89.00"``."""
-    currency: str
+    currency: Optional[str]
     stat: int
-    form_text: str
+    form_text: Optional[str]
     status_text: str
     created_at: str
 
@@ -256,8 +262,8 @@ class PaymentOrders(Paginator):
 
 class _PaymentHistoryRequired(TypedDict):
     orders: PaymentOrders
-    paylist: Dict[str, Any]
-    """Payment methods by list id."""
+    paylist: Union[Dict[str, Any], List[Any]]
+    """Payment methods by group id; a list when the ids are 0, 1, 2... (the server sends a JSON array then)."""
 
 
 class PaymentHistory(_PaymentHistoryRequired, total=False):
@@ -307,13 +313,13 @@ class WebhookLogs(Paginator):
 
 class FreeCountry(TypedDict):
     country: int
-    country_text: str
-    country_original: str
+    country_text: Optional[str]
+    country_original: Optional[str]
 
 
 class FreeNumber(TypedDict):
     country: int
-    country_original: str
+    country_original: Optional[str]
     full_number: str
     data_humans: str
     is_archive: bool

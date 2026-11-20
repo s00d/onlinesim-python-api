@@ -77,12 +77,12 @@ def state(*, message_to_code: bool = True, order_by: Literal["asc", "desc"] = "a
 | `order_by` | `"asc" \| "desc"` | `"asc"` | Order of operations. |
 | `msg_list` | `bool` | `False` | `msg` is a list of all SMS (`list[OperationSms]`). |
 
-`Operation`: `{tzid, response, number?, service?, country?, sum?, time?, msg?, guard_interval_remaining_seconds?, …}`.
-`response` is the state: `TZ_INPOOL` (number being assigned), `TZ_NUM_WAIT` (waiting for SMS), `TZ_NUM_ANSWER` (SMS arrived), `TZ_OVER_OK` (finished), `ERROR_NO_ITEMS` (failed). `msg` is absent until the first SMS. The server caches answers for a few seconds.
+`Operation`: `{tzid, response?, number?, service?, country?, sum?, time?, msg?, guard_interval_remaining_seconds?, …}`.
+`response` is the state (absent when no number could be issued): `TZ_INPOOL` (number being assigned), `TZ_NUM_WAIT` (waiting for SMS), `TZ_NUM_ANSWER` (SMS arrived), `TZ_OVER_OK` (finished), `ERROR_NO_ITEMS` (failed). `msg` is absent until the first SMS. The server caches answers for a few seconds.
 
 ```python
 for op in client.numbers.state(order_by="desc"):
-    print(op["tzid"], op["response"], op.get("msg"))
+    print(op["tzid"], op.get("response"), op.get("msg"))
 ```
 
 ## state_one
@@ -95,7 +95,7 @@ def state_one(tzid: int, *, message_to_code: bool = True, msg_list: bool = False
 
 ```python
 op = client.numbers.state_one(tzid)
-if op["response"] == "TZ_NUM_ANSWER":
+if op.get("response") == "TZ_NUM_ANSWER":
     print(op.get("msg"))
 ```
 
@@ -120,7 +120,7 @@ def wait_code(tzid: int, *, interval: float = 5.0, timeout: float = 600.0, keep_
 | `since` | `str \| None` | `None` | Ignore this value (the previous code). |
 | `sleep`, `clock` | callables | `time.sleep`, `time.monotonic` | Injectable for tests. |
 
-A transient `TransportError` is retried until the timeout; any `ApiError` is raised at once. The same function is available standalone as `onlinesimru.wait_code(numbers, tzid, ...)`.
+Transient errors are retried until the timeout: `TransportError`, and `ApiError` `TRY_AGAIN_LATER` (the HTTP 429 rate limit), `ERROR_UNDEFINED` and `INTERVAL_CONCURRENT_REQUESTS_ERROR`. Any other `ApiError` is raised at once. The same function is available standalone as `onlinesimru.wait_code(numbers, tzid, ...)`.
 
 ```python
 first = client.numbers.wait_code(tzid, keep_open=True)
@@ -140,6 +140,8 @@ def next(tzid: int) -> bool
 ```python
 client.numbers.next(tzid)
 ```
+
+Errors: `ApiError` `ERROR_WRONG_TZID` (not an operation of your account), `ERROR_NO_TZID`.
 
 ## close
 
@@ -167,7 +169,7 @@ def ban(tzid: int) -> bool
 client.numbers.ban(tzid)
 ```
 
-Errors: as `close`.
+Errors: as `close`; `ApiError` with code `"0"` when the operation already has an SMS — nothing is changed then.
 
 ## tariffs
 

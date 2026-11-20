@@ -17,3 +17,9 @@ def test_list_normalises_empty_numbers() -> None:
     client, fake = fake_client(Reply({"response": 1, "countries": [], "numbers": [], "messages": {"data": []}}))
     assert client.free.list()["numbers"] == {}
     assert fake.last().query == {}
+
+
+def test_list_accepts_null_country_texts() -> None:
+    country = {"country": 999, "country_text": None, "country_original": None}
+    client, _ = fake_client(Reply({"response": 1, "countries": [country], "numbers": [], "messages": {"data": []}}))
+    assert client.free.list()["countries"] == [country]

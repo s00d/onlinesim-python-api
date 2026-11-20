@@ -29,7 +29,7 @@ from onlinesimru import OnlineSim
 client = OnlineSim(os.environ["ONLINESIM_KEY"])
 
 b = client.user.balance()
-print(f"available: {b['balance'] - b['zbalance']} USD")
+print(f"available: {b['balance'] - max(b['zbalance'], 0)} USD")
 
 order = client.numbers.get_with_number("google", 44)
 print(f"enter {order['number']} in the app")
@@ -60,7 +60,7 @@ client = OnlineSim("your-api-key", lang="en", timeout=15)
 
 Sections: [`client.numbers`](/numbers), [`client.rent`](/rent), [`client.user`](/user), [`client.free`](/free). Webhook bodies are parsed by the standalone [`parse_webhook`](/webhooks).
 
-Returned dicts keep the server's snake_case field names. Two things are normalised: money that the server sends as a decimal string (`balance`, rent `sum`) becomes a number, and maps that arrive as an empty PHP array `[]` become `{}`.
+Returned dicts keep the server's snake_case field names. Two things are normalised: money that the server sends as a decimal string (`balance`, rent `sum` in `rent.state`) becomes a number, and maps that arrive as an empty PHP array `[]` become `{}`. `payment_history()["paylist"]` is left as sent: a JSON array when its ids are 0, 1, 2…
 
 ### Transport
 
@@ -82,8 +82,8 @@ Every error extends `OnlineSimError`.
 
 | Class | When | Attributes |
 |---|---|---|
-| `ApiError` | The API answered with an error code (also a wrong key, HTTP 456). | `code`, `message` |
-| `NoNumberError` | `NO_NUMBER` / `NO_NUMBER_FOR_FORWARD`: no number right now. Subclass of `ApiError`. | `code`, `message` |
+| `ApiError` | The API answered with an error code (also a wrong key, HTTP 456, and the rate limit, HTTP 429 `TRY_AGAIN_LATER`). | `code`, `message` |
+| `NoNumberError` | `NO_NUMBER`: no number right now. Subclass of `ApiError`. | `code`, `message` |
 | `TransportError` | Network error, request timeout, or a body that is not JSON. | `status` (`None` without a response), `body` (first 500 chars) |
 | `TimeoutError` | `wait_code` got no code within its `timeout`. Also a built-in `TimeoutError`. | — |
 

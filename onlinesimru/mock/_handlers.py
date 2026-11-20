@@ -6,12 +6,14 @@ Auth, queued failures, 456 and 404 are the transport's job (``MockOnlineSim``), 
 
 from __future__ import annotations
 
-import urllib.parse
+import re
 from typing import Any, Callable, Dict, List, Mapping, Sequence, Tuple
 
 from ._state import (
     MOCK_USER_ID,
+    NOTIFY,
     OPERATION_TIME,
+    RENT_FIRST_SMS_MINUTES,
     MockOperation,
     MockRent,
     MockRequest,
@@ -50,6 +52,11 @@ def _int(req: MockRequest, key: str, fallback: int) -> int:
 def _decimal(mills: int, digits: int = 3) -> str:
     """USD with ``digits`` decimals, as the backend sends ``balance``."""
     return f"{from_mills(mills):.{digits}f}"
+
+
+def _iso(seconds: int) -> str:
+    """``YYYY-MM-DDTHH:MM:SS.000000Z``, the ISO-8601 form getFreeList sends."""
+    return stamp(seconds).replace(" ", "T") + ".000000Z"
 
 
 def _country_name(code: int) -> Tuple[str, str]:
@@ -151,6 +158,9 @@ def _get_num(state: MockState, req: MockRequest) -> Any:
         "country": country,
         "time": OPERATION_TIME,
         "service": service,
+        "title": service,
+        "response_text": "Waiting for SMS",
+        "guard_interval_remaining_seconds": state.guard_interval,
     }
 
 
@@ -170,16 +180,21 @@ def _get_state(state: MockState, req: MockRequest) -> Any:
 
 def _set_operation_revise(state: MockState, req: MockRequest) -> Any:
     tzid = _int(req, "tzid", 0)
+    if not tzid:
+        return _error("ERROR_NO_TZID")
     op = state.operations.get(tzid)
-    # Always succeeds, even for unknown tzids, like the backend.
-    if op is not None and op.status != "TZ_OVER_OK":
+    if op is None:
+        return _error("ERROR_WRONG_TZID")
+    if op.status != "TZ_OVER_OK":
         op.cursor = len(op.messages)
         op.status = "TZ_NUM_WAIT"
-    return {"response": 1, "tzid": tzid}
+    return {"tzid": str(tzid), "response": "1"}
 
 
 def _set_operation_ok(state: MockState, req: MockRequest) -> Any:
     tzid = _int(req, "tzid", 0)
+    if not tzid:
+        return _error("ERROR_NO_TZID")
     op = state.operations.get(tzid)
     if op is None or op.status == "TZ_OVER_OK":
         return _error("ERROR_WRONG_TZID")
@@ -232,40 +247,52 @@ def _get_numbers_stats(state: MockState, req: MockRequest) -> Any:
 # ----- rent -----
 
 
-def _rent_item(state: MockState, rent: MockRent, req: MockRequest) -> Dict[str, Any]:
+def _rent_item(state: MockState, rent: MockRent, req: MockRequest, string_sum: bool = False) -> Dict[str, Any]:
+    """A rent as the backend sends it. ``sum`` is a number in getRentNum/extendRentState and a 2-decimal string in
+    getRentState (``string_sum``). An unconfirmed rent (``status`` 0) waits 20 minutes for its first SMS."""
     tariff = state.rent_tariffs.get(rent.country)
     days = dict(sorted(tariff["days"].items())) if tariff is not None else {}
     extendable = rent.extension and tariff is not None and tariff["extend"] == 1
+    confirmed = rent.status == 1
     start = rent.tzid
+    minutes = rent.days * 24 * 60 if confirmed else RENT_FIRST_SMS_MINUTES
     item: Dict[str, Any] = {
-        "status": 1,
+        "status": rent.status,
         "extension": 1 if rent.extension else 0,
         "messages": [
-            {"id": m.id, "service": m.service, "text": m.text, "code": m.code or "", "created_at": m.created_at}
+            {
+                "id": m.id,
+                "service": m.service,
+                "text": m.text,
+                # A notice about a prohibited sender carries the integer 0, other SMS a string ("" without a code).
+                "code": 0 if m.service == NOTIFY else (m.code or ""),
+                "created_at": m.created_at,
+            }
             for m in reversed(rent.messages)
         ],
         "webhook_url": state.webhook_url,
-        "sum": _decimal(to_mills(rent.sum), 2),
+        "sum": _decimal(to_mills(rent.sum), 2) if string_sum else rent.sum,
         "country": rent.country,
         "start_time": stamp(start),
-        "stop_time": stamp(start + rent.days * 86_400),
+        "stop_time": stamp(start + minutes * 60),
         "checked_time": stamp(start),
         "number": rent.number,
-        "days_autoextend": 0,
-        "rent": 1,
+        "days_autoextend": rent.initial_days,
+        "rent": rent.days,
         "tzid": rent.tzid,
-        "time": rent.days * 24 * 60,
-        "days": rent.days,
-        "hours": rent.days * 24,
+        "time": minutes,
+        "days": rent.days if confirmed else 0,
+        "hours": rent.days * 24 if confirmed else 0,
         "extend": days if extendable else [],
-        "checked": True,
-        "reload": None,
+        "checked": confirmed,
+        "reload": 0 if rent.country == 7 else None,
         "day_extend": days.get(1, 0) if extendable else 0,
         "m_ext": False,
         "freeze": False,
     }
     if "number" in req.query:
-        item["time_seconds"] = rent.days * 86_400
+        item["time_seconds"] = minutes * 60
+        item["guard_interval_remaining_seconds"] = state.guard_interval if not confirmed and not rent.messages else 0
     return item
 
 
@@ -273,7 +300,7 @@ def _get_rent_num(state: MockState, req: MockRequest) -> Any:
     country = _int(req, "country", 7)
     tariff = state.rent_tariffs.get(country)
     if tariff is None:
-        return _error("NO_COUNTRY")
+        return _error("UNDEFINED_COUNTRY")
     days = _int(req, "days", 1)
     price = tariff["days"].get(days)
     if price is None:
@@ -281,9 +308,10 @@ def _get_rent_num(state: MockState, req: MockRequest) -> Any:
     if state.available < to_mills(price):
         return _error("WARNING_LOW_BALANCE")
     tzid = state.next_id()
-    state.balance -= to_mills(price)
+    # Reserved, not charged: the first SMS that is not `notify` confirms the rent and charges it.
+    state.frozen += to_mills(price)
     # `extension` defaults to 1 on the server; `0` makes the rent non-extendable for good.
-    rent = MockRent(tzid, country, short_number(tzid), days, price, req.query.get("extension") != "0")
+    rent = MockRent(tzid, country, short_number(tzid), days, price, req.query.get("extension") != "0", days)
     state.rents[tzid] = rent
     return {"response": 1, "item": _rent_item(state, rent, req)}
 
@@ -296,20 +324,19 @@ def _get_rent_state(state: MockState, req: MockRequest) -> Any:
         rents = list(state.rents.values())
     for rent in rents:
         state.poll(rent.tzid)
-    return {"response": 1, "list": [_rent_item(state, r, req) for r in rents]}
+    return {"response": 1, "list": [_rent_item(state, r, req, string_sum=True) for r in rents]}
 
 
 def _extend_rent_state(state: MockState, req: MockRequest) -> Any:
+    # Every refusal is TRY_AGAIN_LATER, like the backend: unknown tzid, unconfirmed rent, not extendable, unknown days.
     rent = state.rents.get(_int(req, "tzid", 0))
-    if rent is None:
-        return _error("ERROR_WRONG_TZID")
-    tariff = state.rent_tariffs.get(rent.country)
-    if not rent.extension or tariff is None or tariff["extend"] != 1:
+    tariff = None if rent is None else state.rent_tariffs.get(rent.country)
+    if rent is None or tariff is None or rent.status != 1 or not rent.extension or tariff["extend"] != 1:
         return _error("TRY_AGAIN_LATER")
     days = _int(req, "days", 1)
     price = tariff["days"].get(days)
     if price is None:
-        return _error("UNDEFINED_DAYS")
+        return _error("TRY_AGAIN_LATER")
     if state.available < to_mills(price):
         return _error("WARNING_LOW_BALANCE")
     state.balance -= to_mills(price)
@@ -320,8 +347,17 @@ def _extend_rent_state(state: MockState, req: MockRequest) -> Any:
 
 def _close_rent_num(state: MockState, req: MockRequest) -> Any:
     tzid = _int(req, "tzid", 0)
-    if state.rents.pop(tzid, None) is None:
-        return _error("ERROR_WRONG_TZID")
+    rent = state.rents.get(tzid)
+    if rent is None:
+        return _error("ERROR_NO_OPERATIONS")
+    if rent.status == 0:
+        # `guard_interval` stands in for the backend's first 120 s, during which a rent without any SMS stays open.
+        if not rent.messages and state.guard_interval > 0:
+            return _error("NO_COMPLETE_TZID")
+        # Unconfirmed (no SMS or only `notify`): the reservation is released.
+        state.frozen -= to_mills(rent.sum)
+    # A confirmed rent closes without a refund.
+    del state.rents[tzid]
     state.scheduled.pop(tzid, None)
     return {"response": "1"}
 
@@ -397,12 +433,8 @@ def _get_profile(state: MockState, req: MockRequest) -> Any:
     }
 
 
-def _is_http_url(value: str) -> bool:
-    try:
-        url = urllib.parse.urlsplit(value)
-        return url.scheme in ("http", "https") and bool(url.hostname)
-    except ValueError:
-        return False
+_URL = re.compile(r"[a-z][a-z0-9+.-]*://\S+", re.IGNORECASE)
+"""The backend accepts any ``scheme://...`` URL."""
 
 
 def _profile(state: MockState, req: MockRequest) -> Any:
@@ -412,7 +444,7 @@ def _profile(state: MockState, req: MockRequest) -> Any:
         return _error("ERROR_PARAMS")
     if "webhook_url" in profile:
         url = profile["webhook_url"]
-        if url is not None and (not isinstance(url, str) or not _is_http_url(url)):
+        if url is not None and (not isinstance(url, str) or not _URL.fullmatch(url)):
             return {"response": {"webhook_url": ["The webhook url must be a valid URL."]}}
         state.webhook_url = url
     return {"response": "1", "user": {"id": MOCK_USER_ID, "webhook_url": state.webhook_url}}
@@ -427,16 +459,20 @@ def _get_payment_history(state: MockState, req: MockRequest) -> Any:
         "response": "1",
         "orders": _paginate([], _int(req, "page", 1), 10, "getPaymentHistory.php"),
         "paylist": [],
-        "domains": [],
+        "domains": ["onlinesim.io"],
+        "forms": {"1": "Card"},
         "currency": {"USD": 1},
+        "buttons": {"USD": [5, 10, 20]},
     }
 
 
 # ----- free -----
 
-# country -> (name, text, short number -> [(sender, text)])
+_FREE_IGNORE = "<p>Messages from these services are not shown:</p><p>1,2,3</p>"
+"""``ignore`` of getFreeList: a note about prohibited services and their ids."""
+
+# country -> (name, text, short number -> [(sender, text)]); country 44 first, like the backend's list.
 _FREE: Mapping[int, Tuple[str, str, Mapping[str, List[Tuple[str, str]]]]] = {
-    7: ("russia", "Russia", {"9001234567": [("Telegram", "Telegram code: 51423")]}),
     44: (
         "united_kingdom",
         "United Kingdom",
@@ -447,6 +483,7 @@ _FREE: Mapping[int, Tuple[str, str, Mapping[str, List[Tuple[str, str]]]]] = {
             ]
         },
     ),
+    7: ("russia", "Russia", {"9001234567": [("Telegram", "Telegram code: 51423")]}),
 }
 
 
@@ -473,18 +510,21 @@ def _get_free_list(state: MockState, req: MockRequest) -> Any:
             "text": text,
             "in_number": sender,
             "my_number": number,
-            "created_at": stamp(i),
+            "created_at": _iso(i),
             "data_humans": "1 day ago",
             "code": extract_code(text) or "-",
         }
         for i, (sender, text) in enumerate(by_number[number])
     ]
-    page = _paginate(messages, _int(req, "page", 1), _int(req, "count", 10), "getFreeList")
+    count = min(500, max(10, _int(req, "count", 10)))
+    page = _paginate(messages, max(1, _int(req, "page", 1)), count, "getFreeList")
     return {
         "response": 1,
         "countries": [{"country": c, "country_text": _FREE[c][1], "country_original": _FREE[c][0]} for c in codes],
         "numbers": numbers,
         "messages": {**page, "number": number, "country": country},
+        "ignore": _FREE_IGNORE,
+        "content": None,
     }
 
 
