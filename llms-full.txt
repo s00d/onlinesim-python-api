@@ -1,0 +1,652 @@
+# Changelog
+
+The full history is in [CHANGELOG.md](https://github.com/s00d/onlinesim-python-api/blob/master/CHANGELOG.md){rel="&#x22;nofollow&#x22;"}.
+
+## 3.1.1
+
+- Fixed: `wait_code` no longer crashes on an operation without `response`; types against the current API (`Profile` `number`/`country`, optional `Operation["response"]`, `RentSms["code"]` `0` for `notify` SMS, nullable free-list and payment fields); `payment_history()["paylist"]` is kept when it arrives as a list.
+- `wait_code` retries `TRY_AGAIN_LATER` (rate limit), `ERROR_UNDEFINED` and `INTERVAL_CONCURRENT_REQUESTS_ERROR`.
+- `MockOnlineSim` follows the backend more closely: rent reservation and confirmation, `setOperationRevise` and `closeRentNum` answers, missing vs wrong key — see [Testing](https://s00d.github.io/onlinesim-python-api/testing).
+
+## 3.1.0
+
+- New: `MockOnlineSim`, an offline fake of the API for your tests — see [Testing](https://s00d.github.io/onlinesim-python-api/testing).
+
+## 3.0.0
+
+A rewrite with a new API; 2.x code does not run unchanged.
+
+- One client, `OnlineSim(api_key)`, with the sections as attributes: `client.numbers`, `client.rent`, `client.user`, `client.free`.
+- Zero runtime dependencies (standard library `urllib`), Python 3.9+, type hints with `TypedDict` results and `py.typed`.
+- The key is sent as a Bearer header, never in the URL.
+- Typed errors: `ApiError`, `NoNumberError`, `TransportError`, `TimeoutError`.
+- `numbers.wait_code` has a real interval and timeout in seconds, `keep_open`, `since`, and retries network errors.
+- `rent.get` creates extendable rents by default (`extension=True`).
+- New: `user.set_webhook_url` / `clear_webhook_url` / `webhook_logs`, `parse_webhook`.
+- Removed: the proxy API, `numbers.repeat`, `numbers.service`, `numbers.service_number`, `rent.port_reload`, `user.create_empty`, the old free-number methods (use `free.list`), `Driver` and the per-service classes.
+
+
+# Free numbers
+
+## list
+
+Countries, the numbers of the selected country and the SMS of the selected number, in one call.
+
+```python
+def list(*, country: int | None = None, number: str | None = None, page: int | None = None, count: int | None = None) -> FreeList
+```
+
+| Option    | Type  | Default        | Description                                                     |
+| --------- | ----- | -------------- | --------------------------------------------------------------- |
+| `country` | `int` | `44` (server)  | Country code; an unknown one falls back to the first available. |
+| `number`  | `str` | first number   | Number **without** the country code, as the keys of `numbers`.  |
+| `page`    | `int` | `1`            | Page of `messages`.                                             |
+| `count`   | `int` | server default | SMS per page, 10–500.                                           |
+
+`FreeList`:
+
+- `countries`: `list` of `{country, country_text, country_original}`
+- `numbers`: `dict[str, {country, country_original, full_number, data_humans, is_archive}]`, keyed by the short number
+- `messages`: a paginator of `{id, text, in_number, my_number, code, created_at, data_humans}` plus `number` and `country`; `code` is `-` when no code was found
+
+```python
+numbers = client.free.list(country=44)["numbers"]
+short = next(iter(numbers), None)
+if short:
+    messages = client.free.list(country=44, number=short, count=20)["messages"]
+    for sms in messages["data"]:
+        print(sms["in_number"], sms["code"], sms["text"])
+```
+
+
+# Numbers
+
+An operation (`tzid`) is one ordered number. Order it with `get`/`get_with_number`, read the SMS with `state_one` or `wait_code`, finish it with `close` (or `ban`). Countries are phone codes (`7`, `44`, …), services are slugs (`google`, `vkcom`, …) as returned by `tariffs`.
+
+## price
+
+Price of one number, USD; `None` when the country has no price for the service.
+
+```python
+def price(service: str, country: int = 7) -> float | None
+```
+
+| Param     | Type  | Default | Description   |
+| --------- | ----- | ------- | ------------- |
+| `service` | `str` | —       | Service slug. |
+| `country` | `int` | `7`     | Country code. |
+
+```python
+usd = client.numbers.price("google", 44)
+```
+
+Errors: `ApiError` `ERROR_NO_SERVICE`, `UNDEFINED_COUNTRY`.
+
+## get
+
+Order a number; returns the operation id. Freezes the price on the balance.
+
+```python
+def get(service: str, country: int = 7, *, reject: Sequence[str | int] | None = None) -> int
+```
+
+| Param     | Type                  | Default      | Description                               |
+| --------- | --------------------- | ------------ | ----------------------------------------- |
+| `service` | `str`                 | —            | Service slug.                             |
+| `country` | `int`                 | `7`          | Country code.                             |
+| `reject`  | `Sequence[str | int]` | profile list | Number prefixes to skip, e.g. `["4470"]`. |
+
+```python
+tzid = client.numbers.get("google", 44, reject=["4470"])
+```
+
+Errors: `NoNumberError`; `ApiError` `WARNING_LOW_BALANCE`, `ERROR_NO_SERVICE`, `UNDEFINED_COUNTRY`, `EXCEEDED_CONCURRENT_OPERATIONS`, `INTERVAL_CONCURRENT_REQUESTS_ERROR`, `TRY_AGAIN_LATER`.
+
+## get_with_number
+
+Same as `get`, but returns the number right away.
+
+```python
+def get_with_number(service: str, country: int = 7, *, reject: Sequence[str | int] | None = None) -> NumberOrder
+```
+
+Returns `NumberOrder`: `{tzid, number, country, time, service, title?, guard_interval_remaining_seconds?}` — `number` with `+`, `time` in seconds left.
+
+```python
+order = client.numbers.get_with_number("google", 44)
+print(order["tzid"], order["number"])
+```
+
+Errors: as `get`.
+
+## state
+
+All operations of the account; `[]` when there are none.
+
+```python
+def state(*, message_to_code: bool = True, order_by: Literal["asc", "desc"] = "asc", msg_list: bool = False) -> list[Operation]
+```
+
+| Option            | Type             | Default | Description                                          |
+| ----------------- | ---------------- | ------- | ---------------------------------------------------- |
+| `message_to_code` | `bool`           | `True`  | `msg` is the code only; `False` — the full SMS text. |
+| `order_by`        | `"asc" | "desc"` | `"asc"` | Order of operations.                                 |
+| `msg_list`        | `bool`           | `False` | `msg` is a list of all SMS (`list[OperationSms]`).   |
+
+`Operation`: `{tzid, response?, number?, service?, country?, sum?, time?, msg?, guard_interval_remaining_seconds?, …}`.
+`response` is the state (absent when no number could be issued): `TZ_INPOOL` (number being assigned), `TZ_NUM_WAIT` (waiting for SMS), `TZ_NUM_ANSWER` (SMS arrived), `TZ_OVER_OK` (finished), `ERROR_NO_ITEMS` (failed). `msg` is absent until the first SMS. The server caches answers for a few seconds.
+
+```python
+for op in client.numbers.state(order_by="desc"):
+    print(op["tzid"], op.get("response"), op.get("msg"))
+```
+
+## state_one
+
+One operation.
+
+```python
+def state_one(tzid: int, *, message_to_code: bool = True, msg_list: bool = False) -> Operation
+```
+
+```python
+op = client.numbers.state_one(tzid)
+if op.get("response") == "TZ_NUM_ANSWER":
+    print(op.get("msg"))
+```
+
+Errors: `ApiError` `ERROR_NO_OPERATIONS` when the operation does not exist (any more).
+
+## wait_code
+
+Poll the operation until a code arrives, then close it and return the code.
+
+```python
+def wait_code(tzid: int, *, interval: float = 5.0, timeout: float = 600.0, keep_open: bool = False,
+              full_message: bool = False, since: str | None = None,
+              sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic) -> str
+```
+
+| Option           | Type         | Default                        | Description                                                          |
+| ---------------- | ------------ | ------------------------------ | -------------------------------------------------------------------- |
+| `interval`       | `float`      | `5.0`                          | Poll interval, seconds.                                              |
+| `timeout`        | `float`      | `600.0`                        | Give up after, seconds.                                              |
+| `keep_open`      | `bool`       | `False`                        | Call `next(tzid)` instead of `close(tzid)`, to wait for another SMS. |
+| `full_message`   | `bool`       | `False`                        | Return the full SMS text instead of the code.                        |
+| `since`          | `str | None` | `None`                         | Ignore this value (the previous code).                               |
+| `sleep`, `clock` | callables    | `time.sleep`, `time.monotonic` | Injectable for tests.                                                |
+
+Transient errors are retried until the timeout: `TransportError`, and `ApiError` `TRY_AGAIN_LATER` (the HTTP 429 rate limit), `ERROR_UNDEFINED` and `INTERVAL_CONCURRENT_REQUESTS_ERROR`. Any other `ApiError` is raised at once. The same function is available standalone as `onlinesimru.wait_code(numbers, tzid, ...)`.
+
+```python
+first = client.numbers.wait_code(tzid, keep_open=True)
+second = client.numbers.wait_code(tzid, since=first)
+```
+
+Errors: `TimeoutError`; `ApiError` with code `TZ_OVER_OK` or `ERROR_NO_ITEMS` when the operation ended without a new code; any other `ApiError` from `state_one`/`close`/`next`.
+
+## next
+
+Switch the operation to its next SMS and keep it open (for services that send several SMS).
+
+```python
+def next(tzid: int) -> bool
+```
+
+```python
+client.numbers.next(tzid)
+```
+
+Errors: `ApiError` `ERROR_WRONG_TZID` (not an operation of your account), `ERROR_NO_TZID`.
+
+## close
+
+Finish the operation. An operation without SMS can be closed only after its guard interval (`guard_interval_remaining_seconds`); every attempt locks the tzid for 5 s.
+
+```python
+def close(tzid: int) -> bool
+```
+
+```python
+client.numbers.close(tzid)
+```
+
+Errors: `ApiError` `NO_COMPLETE_TZID`, `INTERVAL_CONCURRENT_REQUESTS_ERROR`, `ERROR_WRONG_TZID`.
+
+## ban
+
+Finish the operation and report the number as bad. Only before any SMS arrived.
+
+```python
+def ban(tzid: int) -> bool
+```
+
+```python
+client.numbers.ban(tzid)
+```
+
+Errors: as `close`; `ApiError` with code `"0"` when the operation already has an SMS — nothing is changed then.
+
+## tariffs
+
+Services, prices and stock of every country, keyed by country code. No API key needed. The answer is large (a few MB); prefer `tariffs_one`.
+
+```python
+def tariffs() -> dict[str, CountryStat]
+```
+
+`CountryStat`: `{name, locale_name?, position, code, other?, new, enabled, services}`; `services` maps `service_<slug>` to `{count, popular, code, price, id, service, slug}`.
+
+```python
+countries = client.numbers.tariffs()
+print(len(countries), "countries")
+```
+
+## tariffs_one
+
+Services, prices and stock of one country.
+
+```python
+def tariffs_one(country: int = 7) -> CountryStat
+```
+
+```python
+uk = client.numbers.tariffs_one(44)
+for s in uk["services"].values():
+    print(s["slug"], s["price"], s["count"])
+```
+
+Errors: `ApiError` `NO_COUNTRY`.
+
+
+# Rent
+
+A rent keeps a number for `days` days. Its SMS come in `RentItem["messages"]`, newest first.
+
+`get` reserves the price (it shows in `zbalance`): the rent starts with `status` `0` and `checked` `False` and waits up to 20 minutes for its first SMS. The first SMS that is not a `notify` notice confirms it (`status` `1`) and charges the price; without one the rent closes and the reservation is released. Some countries (`confirm` in `tariffs`, e.g. US numbers) are confirmed and charged at once.
+
+`RentItem`: `{tzid, status, number, country, sum, days, hours, time, time_seconds?, extension, extend, messages, start_time, stop_time, day_extend?, …}` —
+`sum` is the cost in USD incl. extensions (a number; `rent.state` gets it from the server as a decimal string), `time` minutes left, `time_seconds` seconds left,
+`extension` `0` not extendable / `1` extendable / `2` auto-extension, `extend` maps days to the extension price (`{}` when not extendable),
+`messages` is `list[RentSms]`: `{id, service, text, code, created_at}` — `code` is `""` when no code was found and the integer `0` for a `notify` SMS (a prohibited sender).
+
+## get
+
+Rent a number. The price is reserved; the first SMS charges it.
+
+```python
+def get(country: int = 7, days: int = 1, extension: bool = True) -> RentItem
+```
+
+| Param       | Type   | Default | Description                                     |
+| ----------- | ------ | ------- | ----------------------------------------------- |
+| `country`   | `int`  | `7`     | Country code.                                   |
+| `days`      | `int`  | `1`     | One of the tariff's `days` keys.                |
+| `extension` | `bool` | `True`  | `False` makes the rent non-extendable for good. |
+
+```python
+rent = client.rent.get(7, 7)
+print(rent["tzid"], rent["number"], rent["sum"])
+```
+
+Errors: `NoNumberError`; `ApiError` `UNDEFINED_DAYS`, `UNDEFINED_COUNTRY`, `WARNING_LOW_BALANCE`, `INTERVAL_CONCURRENT_REQUESTS_ERROR`, `TRY_AGAIN_LATER`.
+
+## state
+
+All rents of the account.
+
+```python
+def state() -> list[RentItem]
+```
+
+```python
+for rent in client.rent.state():
+    print(rent["number"], rent["messages"][0]["code"] if rent["messages"] else None)
+```
+
+## state_one
+
+One rent.
+
+```python
+def state_one(tzid: int) -> RentItem
+```
+
+```python
+messages = client.rent.state_one(tzid)["messages"]
+```
+
+Errors: `ApiError` `ERROR_NO_OPERATIONS` for an unknown tzid.
+
+## extend
+
+Extend a rent by `days` days and charge the balance at once. Only confirmed rents (`status` `1` or `4`) created with `extension=True`.
+
+```python
+def extend(tzid: int, days: int = 1) -> RentItem
+```
+
+```python
+rent = client.rent.extend(tzid, 3)
+print(rent["stop_time"])
+```
+
+Errors: `ApiError` `TRY_AGAIN_LATER` (unknown tzid, not confirmed yet or closed, not extendable, unknown period, a repeat within 10 s), `WARNING_LOW_BALANCE`.
+
+## close
+
+Return the number before the period ends. A rent that is not confirmed yet (`status` `0`) and has no SMS can be closed only after 120 s; then, or with only `notify` SMS, the reservation is released. With a real SMS the rent is confirmed (charged) and closed. A confirmed rent closes without a refund. US numbers cannot be closed early.
+
+```python
+def close(tzid: int) -> bool
+```
+
+```python
+client.rent.close(tzid)
+```
+
+Errors: `ApiError` `ERROR_NO_OPERATIONS`, `NO_COMPLETE_TZID`, `NO_CLOSE_RENT_US`, `TRY_AGAIN_LATER`.
+
+## tariffs
+
+Rent prices of every country, keyed by country code. No API key needed.
+
+```python
+def tariffs() -> dict[str, RentTariff]
+```
+
+`RentTariff`: `{code, name, enabled, new, position, extend, confirm?, days, count, ext_counts?}` — `days` maps rent days to the price in USD, `count` to the numbers available.
+
+```python
+tariffs = client.rent.tariffs()
+```
+
+## tariffs_one
+
+Rent prices of one country.
+
+```python
+def tariffs_one(country: int = 7) -> RentTariff
+```
+
+```python
+days = client.rent.tariffs_one(7)["days"]
+print(days.get("7"))  # price of 7 days
+```
+
+Errors: `ApiError` `NO_COUNTRY` for a country without rent.
+
+
+# Testing
+
+`MockOnlineSim` is an in-process fake of the OnlineSim API that ships with the package. It is a [transport](https://s00d.github.io/onlinesim-python-api/#transport) that answers like the real backend — same shapes, same error codes, HTTP 456 for a wrong key and HTTP 200 `ERROR_WRONG_KEY` for a missing one — and keeps a balance, operations and rents. Your code talks to a normal `OnlineSim` client, so nothing in it changes for tests. It is deterministic: no randomness, no clock, numbers and ids come from a counter.
+
+## Setup
+
+```python
+from onlinesimru import MockOnlineSim
+
+mock = MockOnlineSim(balance=10)
+client = mock.client()  # an OnlineSim wired to the mock
+```
+
+```python
+MockOnlineSim(
+    *,
+    api_key: str = "mock-key",
+    balance: float = 100,                                  # USD
+    prices: Mapping[int, Mapping[str, float]] | None = None,  # country -> service -> USD
+    rent_tariffs: Mapping[int, MockRentTariff] | None = None,  # country -> {"days": {days: USD}, "extend": 0 | 1}
+    guard_interval: int = 0,                               # seconds
+)
+```
+
+| Option           | Default                                                                                   | Description                                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `api_key`        | `"mock-key"`                                                                              | Key the mock accepts. `mock.client()` uses it; `mock.client(api_key="x")` tests a wrong key (`""` for none).    |
+| `balance`        | `100`                                                                                     | Starting balance, USD.                                                                                          |
+| `prices`         | `{7: {"vkcom": 0.5, "telegram": 1.2, "google": 0.3}, 44: {"google": 0.2, "vkcom": 0.36}}` | Number prices; replaces the defaults. Also feeds `numbers.tariffs()`.                                           |
+| `rent_tariffs`   | `{7: {"days": {1: 1.0, 3: 2.5, 7: 5.0}, "extend": 1}}`                                    | Rent prices; `"extend": 0` makes rents of that country non-extendable.                                          |
+| `guard_interval` | `0`                                                                                       | `> 0`: an operation without SMS, or an unconfirmed rent without any SMS, cannot be closed (`NO_COMPLETE_TZID`). |
+
+`mock.client(*, api_key, base_url, lang, dev_id, timeout)` takes the usual [client options](https://s00d.github.io/onlinesim-python-api/#client-options) except `transport`. To build the client yourself, pass `mock.transport` as `transport`; any `base_url` works:
+
+```python
+from onlinesimru import MockOnlineSim, OnlineSim
+
+mock = MockOnlineSim()
+client = OnlineSim("mock-key", transport=mock.transport)
+```
+
+## A full example
+
+Order a number, let an SMS arrive while `wait_code` polls, check the code and the money. `add_sms_after` delivers the SMS after a number of polls instead of after some time, so `wait_code` runs with `interval=0` and the test takes milliseconds.
+
+```python
+from onlinesimru import MockOnlineSim
+
+
+def test_receives_the_code() -> None:
+    mock = MockOnlineSim(balance=10)
+    client = mock.client()
+
+    order = client.numbers.get_with_number("google", 44)
+    assert order["number"] == "+44900000001"
+
+    mock.add_sms_after(order["tzid"], "Your Google code: 123-456", 2)  # the third poll sees it
+    code = client.numbers.wait_code(order["tzid"], interval=0)
+
+    assert code == "123456"
+    assert mock.operations()[0].status == "TZ_OVER_OK"  # wait_code closed it
+    assert mock.balance() == 9.8  # the price is spent once an SMS arrived
+```
+
+The `msg` of an operation is the code by default: the first run of 4–8 digits, with spaces and dashes between digits removed (`123-456` → `123456`); a text without such a run comes back whole. `message_to_code=False` (or `full_message=True` in `wait_code`) gives the full text.
+
+## Errors
+
+`fail_next(code)` makes the next request answer `{"response": code}` — the client turns it into `ApiError` (or `NoNumberError`) exactly as for the real server. Pass `endpoint` to fail only that endpoint. `fail_next_transport()` makes the next request fail with a non-JSON HTTP 502 (`TransportError`).
+
+```python
+import pytest
+
+from onlinesimru import MockOnlineSim, NoNumberError, TransportError
+
+
+def test_handles_a_missing_number_and_a_network_hiccup() -> None:
+    mock = MockOnlineSim()
+    client = mock.client()
+
+    mock.fail_next("NO_NUMBER", endpoint="getNum.php")
+    with pytest.raises(NoNumberError):
+        client.numbers.get("google")
+
+    mock.fail_next_transport(status=503)
+    with pytest.raises(TransportError):
+        client.user.balance()
+
+    assert client.user.balance()["balance"] == 100  # one-shot
+```
+
+The state itself produces the real error codes too: `WARNING_LOW_BALANCE` when the balance is short, `NO_NUMBER` when `reject` matches the next number, `UNDEFINED_COUNTRY` / `ERROR_NO_SERVICE` for unknown prices, `ERROR_WRONG_TZID` for an unknown or closed operation (`next` too; `ERROR_NO_TZID` for tzid `0`), `UNDEFINED_COUNTRY` / `UNDEFINED_DAYS` for an unknown rent country or period, `TRY_AGAIN_LATER` for every refused `rent.extend`, `ERROR_NO_OPERATIONS` for an unknown rent in `rent.close`, `ERROR_WRONG_KEY` for a wrong key (HTTP 456) or no key (HTTP 200).
+
+## Inspecting requests
+
+`mock.requests` lists every request received as `MockRequest(method, path, query, body)`, `path` relative to `/api/`.
+
+```python
+from onlinesimru import MockOnlineSim, MockRequest
+
+
+def test_sends_reject_as_a_comma_list() -> None:
+    mock = MockOnlineSim()
+    mock.client().numbers.get("google", 44, reject=["4470", "4471"])
+
+    assert mock.requests == [
+        MockRequest("GET", "getNum.php", {"service": "google", "country": "44", "reject": "4470,4471", "lang": "en"}),
+    ]
+```
+
+## Control API
+
+| Member                                              | Description                                                                                                                |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `client(**options)`                                 | A normal `OnlineSim` wired to the mock.                                                                                    |
+| `transport`                                         | The fake transport (`Callable[[HttpRequest], HttpResponse]`).                                                              |
+| `add_sms(tzid, text, *, service=None)`              | An SMS arrives now at a number operation or a rent (detected by `tzid`). Raises `ValueError` for an unknown or closed one. |
+| `add_sms_after(tzid, text, polls, *, service=None)` | The SMS arrives after `polls` state requests for `tzid` (`numbers.state`/`state_one`, `rent.state`/`state_one`).           |
+| `fail_next(code, *, endpoint=None)`                 | The next request (to `endpoint` only, e.g. `"getNum.php"`) answers `{"response": code}`.                                   |
+| `fail_next_transport(*, status=502, endpoint=None)` | The next request fails with a non-JSON body and HTTP `status`.                                                             |
+| `set_balance(usd)` / `balance()`                    | Set / read the total balance, USD (it includes the part frozen by open operations, as `user.balance()` reports it).        |
+| `operations()` / `rents()`                          | Copies of the current number operations / open rents (`MockOperation` / `MockRent` dataclasses), for assertions.           |
+| `requests`                                          | Log of the requests received (`list[MockRequest]`).                                                                        |
+| `reset()`                                           | Back to the constructor's state.                                                                                           |
+
+## What the mock does
+
+- **Numbers**: `get` freezes the price; `close` after an SMS spends it, `close` without one refunds it; `ban` after an SMS answers `"0"`, like the server. Numbers are `+<country>9000000NN`, ids count from 1. `next` switches to the following SMS. The operation's `time` stays at 1200 s — there is no clock.
+- **Rent**: `get` reserves the price (`status` `0`, `checked` `False`) and keeps the `extension` flag; the first SMS that is not `notify` confirms the rent (`status` `1`) and charges it — `add_sms(tzid, text, service="notify")` adds a notice with `code` `0` that confirms nothing. `extend` works on a confirmed rent and charges at once. `close` releases the reservation of an unconfirmed rent and gives no refund for a confirmed one. `sum` is a number in `get`/`extend` and a decimal string on the wire of `state`, like the server. SMS appear in `messages`, newest first.
+- **User**: `balance` (frozen part included), a fixed profile, `set_webhook_url` accepts any `scheme://…` URL (`VALIDATION_ERROR` otherwise), `webhook_logs` lists the deliveries the mock *recorded* when an SMS arrived while a webhook URL was set — it makes no HTTP call; their `params` follow the real payload (`code` `""` without a code, rent `number` in digits without `+`, rent `time_left` in minutes). `payment_history` has no orders.
+- **Free**: `free.list` returns two fixed countries (44 first) with one number and a few SMS each.
+- Not imitated: anything that needs real time — the 5 s lock after `setOperationOk` (`INTERVAL_CONCURRENT_REQUESTS_ERROR`), the 10 s lock of `rent.extend`, the 120 s before an unconfirmed rent may be closed and its 20-minute wait for the first SMS. `guard_interval > 0` stands in for "too early to close".
+
+
+# User
+
+## balance
+
+Balance in USD.
+
+```python
+def balance() -> Balance  # {"balance": float, "zbalance": float, "income"?: float}
+```
+
+`balance` includes the sum frozen by numbers and unconfirmed rents in progress (`zbalance`, which may be negative): available = `balance − max(zbalance, 0)`. `income` is the partner income. The server caches the answer for 60 s.
+
+```python
+b = client.user.balance()
+available = b["balance"] - max(b["zbalance"], 0)
+```
+
+Errors: `ApiError` `ERROR_WRONG_KEY`, `ACCOUNT_BLOCKED`, `API_ACCESS_DISABLED`, `API_ACCESS_IP`.
+
+## profile
+
+The account profile.
+
+```python
+def profile() -> Profile
+```
+
+`Profile`: `{id, name, username, email, locale, currency, number_country, number_reject, webhook_url, api_access, …}`.
+
+```python
+profile = client.user.profile()
+print(profile.get("email"), profile.get("webhook_url"))
+```
+
+## payment_history
+
+Top-up orders (paginated, newest first) and the available payment methods.
+
+```python
+def payment_history(page: int = 1) -> PaymentHistory
+```
+
+`PaymentHistory`: `{orders, paylist, domains?, forms?, currency?, buttons?}` — `orders` is a paginator of `PaymentOrder`. `PaymentOrder["sum"]` stays a decimal string (`"89.00"`); `currency` and `form_text` may be `None`. `paylist` maps a group id to its payment methods, or is a list when the ids are 0, 1, 2… (the server sends a JSON array then).
+
+```python
+orders = client.user.payment_history()["orders"]
+print(f"{orders['total']} orders, page {orders['current_page']}/{orders['last_page']}")
+```
+
+## set_webhook_url
+
+Set the URL that receives SMS webhooks (see [Webhooks](https://s00d.github.io/onlinesim-python-api/webhooks)).
+
+```python
+def set_webhook_url(url: str) -> bool
+```
+
+```python
+client.user.set_webhook_url("https://example.com/onlinesim-hook")
+```
+
+Errors: `ApiError` `VALIDATION_ERROR` for an invalid URL; `message` holds the server's field messages.
+
+## clear_webhook_url
+
+Remove the webhook URL, also from operations in progress.
+
+```python
+def clear_webhook_url() -> bool
+```
+
+```python
+client.user.clear_webhook_url()
+```
+
+## webhook_logs
+
+Webhook delivery log, newest first, 10 per page.
+
+```python
+def webhook_logs(page: int = 1) -> WebhookLogs
+```
+
+`WebhookLogs` is a paginator of `WebhookLog`: `{id, user_id, webhook_url, type, params, status, error, created_at, updated_at}` — `type` is `receiving_sms` or `rent_sms`, `status` is `success`, `fail` or `pending`, `params` the payload that was sent.
+
+```python
+for log in client.user.webhook_logs()["data"]:
+    print(log["created_at"], log["status"], log["error"])
+```
+
+
+# Webhooks
+
+Set a URL with [`client.user.set_webhook_url`](https://s00d.github.io/onlinesim-python-api/user#set_webhook_url). For each SMS the server POSTs a JSON body to it: `webhook_type` `receiving_sms` for numbers, `rent_sms` for rents. Delivery attempts are listed by [`client.user.webhook_logs`](https://s00d.github.io/onlinesim-python-api/user#webhook_logs).
+
+## parse_webhook
+
+Parse an inbound webhook body from JSON text (`str` or `bytes`) or an already parsed dict.
+
+```python
+def parse_webhook(payload: str | bytes | Mapping[str, Any]) -> WebhookPayload
+```
+
+Lenient: numeric fields may arrive as strings, missing or malformed fields become `None`, unknown fields are dropped. It raises `OnlineSimError` only when the input is not a JSON object.
+
+```python
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+from onlinesimru import parse_webhook
+
+
+class Hook(BaseHTTPRequestHandler):
+    def do_POST(self) -> None:
+        body = self.rfile.read(int(self.headers["Content-Length"]))
+        hook = parse_webhook(body)
+        if hook["webhook_type"] == "receiving_sms":
+            print(hook["operation_id"], hook["code"])
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
+
+
+HTTPServer(("", 8080), Hook).serve_forever()
+```
+
+## Payload fields
+
+| Field          | Type                                  | Description                                                                                                                  |
+| -------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `webhook_type` | `"receiving_sms" | "rent_sms" | None` | Kind of operation.                                                                                                           |
+| `operation_id` | `int | None`                          | `tzid` of the operation or rent.                                                                                             |
+| `user_id`      | `int | None`                          | Account id.                                                                                                                  |
+| `country_code` | `int | None`                          | Country code of the number.                                                                                                  |
+| `number`       | `str | None`                          | Numbers: `+` and the full number (`+79001234567`), or `hidden`. Rent: the full number in digits without `+` (`79001234567`). |
+| `sender`       | `str | None`                          | Sender of the SMS, e.g. `VK`.                                                                                                |
+| `message`      | `str | None`                          | Full SMS text.                                                                                                               |
+| `code`         | `str | None`                          | Code extracted from the SMS; `""` when none was found.                                                                       |
+| `time_start`   | `str | None`                          | Numbers: when the operation was ordered. Rent: when the SMS arrived. `YYYY-MM-DD HH:MM:SS`.                                  |
+| `time_left`    | `int | None`                          | Time left: seconds for numbers, minutes for rent.                                                                            |

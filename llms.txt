@@ -1,0 +1,17 @@
+# onlinesim-python-api
+
+> Typed, zero-dependency Python client for the OnlineSim API.
+
+## Documentation Sets
+
+- [onlinesim-python-api — full docs](https://s00d.github.io/onlinesim-python-api/llms-full.txt): Complete documentation of the onlinesim-python-api SDK (PyPI: onlinesimru).
+
+## Documentation
+
+- [Changelog](https://s00d.github.io/onlinesim-python-api/raw/changelog.md): Release notes of onlinesim-python-api (PyPI onlinesimru).
+- [Free numbers](https://s00d.github.io/onlinesim-python-api/raw/free.md): Public numbers and their SMS — client.free. No API key needed.
+- [Numbers](https://s00d.github.io/onlinesim-python-api/raw/numbers.md): Order a number, read its SMS, close it — client.numbers.
+- [Rent](https://s00d.github.io/onlinesim-python-api/raw/rent.md): Rent a number for days and receive every SMS sent to it — client.rent.
+- [Testing](https://s00d.github.io/onlinesim-python-api/raw/testing.md): Test your integration offline with MockOnlineSim — no network, key or money.
+- [User](https://s00d.github.io/onlinesim-python-api/raw/user.md): Balance, profile, payments and the webhook URL — client.user.
+- [Webhooks](https://s00d.github.io/onlinesim-python-api/raw/webhooks.md): Receive SMS as HTTP callbacks and parse them with parse_webhook.
