@@ -24,12 +24,36 @@ def test_profile() -> None:
     assert profile.get("number_reject") == ["333"]
 
 
-def test_payment_history_normalises_empty_paylist() -> None:
+def test_profile_number_int_and_country_string() -> None:
+    client, _ = fake_client(ok(profile={"id": 1, "number": 79001234567, "country": "RU"}))
+    profile = client.user.profile()
+    assert (profile.get("number"), profile.get("country")) == (79001234567, "RU")
+
+
+def test_payment_history_keeps_list_paylist_and_nullable_order_fields() -> None:
+    body = fixture("getPaymentHistory")
+    order = {
+        "id": 1,
+        "sum": "10.00",
+        "currency": None,
+        "form_text": None,
+        "stat": 0,
+        "created_at": "2026-06-14 09:12:12",
+    }
+    paylist = [{"id": 0, "name": "Card"}, {"id": 1, "name": "Crypto"}]
+    client, _ = fake_client(Reply({**body, "paylist": paylist, "orders": {**body["orders"], "data": [order]}}))
+    history = client.user.payment_history()
+    assert history["paylist"] == paylist
+    first = history["orders"]["data"][0]
+    assert (first.get("currency"), first.get("form_text")) == (None, None)
+
+
+def test_payment_history_keeps_empty_paylist() -> None:
     client, fake = fake_client(Reply(fixture("getPaymentHistory")))
     history = client.user.payment_history(2)
     assert fake.last().path == "/api/getPaymentHistory.php"
     assert fake.last().query == {"page": "2"}
-    assert history["paylist"] == {}
+    assert history["paylist"] == []
     order = history["orders"]["data"][0]
     assert (order.get("id"), order.get("sum")) == (9462, "89.00")
 

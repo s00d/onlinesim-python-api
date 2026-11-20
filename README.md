@@ -18,7 +18,7 @@ from onlinesimru import OnlineSim
 client = OnlineSim(os.environ["ONLINESIM_KEY"])
 
 b = client.user.balance()
-print(f"available: {b['balance'] - b['zbalance']} USD")
+print(f"available: {b['balance'] - max(b['zbalance'], 0)} USD")
 
 order = client.numbers.get_with_number("google", 44)
 print(f"enter {order['number']} in the app")

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from ._normalize import as_map, num
+from ._normalize import num
 from .models import Balance, PaymentHistory, Profile, WebhookLogs
 
 if TYPE_CHECKING:
@@ -16,7 +16,7 @@ class UserApi:
         self._request = request
 
     def balance(self) -> Balance:
-        """Balance in USD. ``balance`` includes the frozen ``zbalance``: available = balance - zbalance."""
+        """Balance in USD. ``balance`` includes the frozen ``zbalance``: available = balance - max(zbalance, 0)."""
         res = self._request("getBalance.php", {"income": 1})
         out: Balance = {"balance": num(res.get("balance")) or 0, "zbalance": num(res.get("zbalance")) or 0}
         income = num(res.get("income"))
@@ -30,8 +30,8 @@ class UserApi:
 
     def payment_history(self, page: int = 1) -> PaymentHistory:
         """Top-up orders (paginated, newest first) and the available payment methods."""
-        res = self._request("getPaymentHistory.php", {"page": page})
-        return cast(PaymentHistory, {**res, "paylist": as_map(res.get("paylist"))})
+        # `paylist` stays as sent: a non-empty JSON array is real data (ids 0..n), not PHP's empty map.
+        return cast(PaymentHistory, self._request("getPaymentHistory.php", {"page": page}))
 
     def set_webhook_url(self, url: str) -> bool:
         """Set the URL that receives SMS webhooks. Raises ``ApiError("VALIDATION_ERROR")`` for an invalid URL."""

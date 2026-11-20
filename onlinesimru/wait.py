@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-import contextlib
 import time
 from typing import Callable, Optional, Protocol
 
 from .errors import ApiError, TimeoutError, TransportError
 from .models import Operation
+
+_RETRYABLE = frozenset({"TRY_AGAIN_LATER", "ERROR_UNDEFINED", "INTERVAL_CONCURRENT_REQUESTS_ERROR"})
+"""Error codes that mean "try again": rate limit (HTTP 429), a transient server error, too many requests."""
 
 
 class _Numbers(Protocol):
@@ -32,14 +34,21 @@ def wait_code(
     then ``close`` (or ``next`` with ``keep_open``) and return it.
 
     A finished operation (TZ_OVER_OK, ERROR_NO_ITEMS) without a new code raises ``ApiError`` with that state as the
-    code; running out of ``timeout`` seconds raises ``TimeoutError``. ``TransportError`` is retried until the
-    timeout; any ``ApiError`` is raised at once. ``sleep`` and ``clock`` are injectable for tests.
+    code; running out of ``timeout`` seconds raises ``TimeoutError``. ``TransportError`` and the transient
+    ``ApiError`` codes ``TRY_AGAIN_LATER``, ``ERROR_UNDEFINED`` and ``INTERVAL_CONCURRENT_REQUESTS_ERROR`` are
+    retried until the timeout; any other ``ApiError`` is raised at once. ``sleep`` and ``clock`` are injectable
+    for tests.
     """
     deadline = clock() + timeout
     while True:
         op: Optional[Operation] = None
-        with contextlib.suppress(TransportError):  # transient: retried until the timeout
+        try:
             op = numbers.state_one(tzid, message_to_code=not full_message)
+        except TransportError:
+            pass  # transient: retried until the timeout
+        except ApiError as error:
+            if error.code not in _RETRYABLE:
+                raise
 
         if op is not None:
             msg = op.get("msg")
@@ -49,8 +58,9 @@ def wait_code(
                 else:
                     numbers.close(tzid)
                 return msg
-            if op["response"] in ("TZ_OVER_OK", "ERROR_NO_ITEMS"):
-                raise ApiError(op["response"])
+            status = op.get("response")  # absent while no number is issued
+            if status in ("TZ_OVER_OK", "ERROR_NO_ITEMS"):
+                raise ApiError(status)
 
         left = deadline - clock()
         if left <= 0:

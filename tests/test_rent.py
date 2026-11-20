@@ -95,3 +95,29 @@ def test_close_no_close_rent_us() -> None:
     with pytest.raises(ApiError) as info:
         client.rent.close(1)
     assert info.value.code == "NO_CLOSE_RENT_US"
+
+
+def test_spec_shapes_sum_number_or_string_and_notify_code_0() -> None:
+    item = {
+        **items()[0],
+        "status": 0,
+        "checked": False,
+        "sum": 1.5,
+        "messages": [
+            {
+                "id": 2,
+                "service": "notify",
+                "text": "Sender not accepted",
+                "code": 0,
+                "created_at": "2026-11-19 10:01:12",
+            },
+            {"id": 1, "service": "Google", "text": "G-070051", "code": "070051", "created_at": "2026-11-19 10:01:00"},
+        ],
+    }
+    client, _ = fake_client(
+        Reply({"response": 1, "item": item}), Reply({"response": 1, "list": [{**item, "sum": "2.40"}]})
+    )
+    rent = client.rent.get(7, 3)
+    assert (rent["status"], rent.get("checked"), rent["sum"]) == (0, False, 1.5)
+    assert [m["code"] for m in rent["messages"]] == [0, "070051"]
+    assert client.rent.state_one(rent["tzid"])["sum"] == 2.4

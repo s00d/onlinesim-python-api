@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Callable
+import json
+from typing import Any, Callable, Optional
 
 import pytest
 
 from onlinesimru import (
     ApiError,
     HttpRequest,
+    HttpResponse,
     MockOnlineSim,
     MockRequest,
     NoNumberError,
@@ -21,22 +23,37 @@ def no_sleep(_seconds: float) -> None:
     pass
 
 
+def raw(mock: MockOnlineSim, path: str, key: Optional[str] = "mock-key") -> HttpResponse:
+    """One request straight to the mock transport, bypassing the client's parsing."""
+    headers = {} if key is None else {"Authorization": f"Bearer {key}"}
+    return mock.transport(HttpRequest("GET", f"https://x.test/api/{path}", headers, None, 1))
+
+
+def body(res: HttpResponse) -> Any:
+    return json.loads(res.body)
+
+
 # ----- auth and transport -----
 
 
-def test_wrong_or_missing_key_is_http_456_mapped_to_api_error() -> None:
+def test_wrong_key_is_http_456_missing_key_http_200_both_api_error() -> None:
     mock = MockOnlineSim()
     for api_key in ("nope", ""):
         with pytest.raises(ApiError) as error:
             mock.client(api_key=api_key).user.balance()
         assert error.value.code == "ERROR_WRONG_KEY"
+    missing = raw(mock, "getBalance.php", key=None)
+    assert (missing.status, body(missing)) == (200, {"response": "ERROR_WRONG_KEY"})
+    assert raw(mock, "getBalance.php", key="nope").status == 456
 
 
-def test_tariffs_and_free_numbers_need_no_key() -> None:
-    client = MockOnlineSim().client(api_key="")
+def test_tariffs_and_free_numbers_need_no_key_but_a_wrong_key_is_456() -> None:
+    mock = MockOnlineSim()
+    client = mock.client(api_key="")
     assert client.numbers.tariffs_one(44)["code"] == 44
     assert client.rent.tariffs_one(7)["code"] == 7
     assert client.free.list()["messages"]["country"] == 44
+    assert code_of(mock.client(api_key="nope").free.list) == "ERROR_WRONG_KEY"
 
 
 def test_transport_of_a_hand_built_client_with_any_base_url() -> None:
@@ -74,6 +91,9 @@ def test_get_freezes_the_price_and_numbers_are_deterministic() -> None:
         "country": 7,
         "time": 1200,
         "service": "vkcom",
+        "title": "vkcom",
+        "response_text": "Waiting for SMS",
+        "guard_interval_remaining_seconds": 0,
     }
     assert [r.query.get("number") for r in mock.requests] == [None, "1"]
     assert client.user.balance() == {"balance": 100, "zbalance": 0.7, "income": 0}
@@ -148,7 +168,17 @@ def test_full_text_without_code_next_and_msg_list() -> None:
         {"service": "telegram", "msg": "Welcome!"},
         {"service": "telegram", "msg": "98765"},
     ]
-    assert client.numbers.next(424242) is True  # always succeeds, like the backend
+    assert len([r for r in mock.requests if r.path == "setOperationRevise.php"]) == 1
+
+
+def test_next_answer_wrong_tzid_and_no_tzid() -> None:
+    mock = MockOnlineSim()
+    client = mock.client()
+    tzid = client.numbers.get("google", 44)
+    assert body(raw(mock, f"setOperationRevise.php?tzid={tzid}")) == {"tzid": str(tzid), "response": "1"}
+    assert code_of(lambda: client.numbers.next(424242)) == "ERROR_WRONG_TZID"
+    assert code_of(lambda: client.numbers.next(0)) == "ERROR_NO_TZID"
+    assert code_of(lambda: client.numbers.close(0)) == "ERROR_NO_TZID"
 
 
 def test_close_spends_or_refunds_and_ban_after_sms_answers_0() -> None:
@@ -228,39 +258,73 @@ def test_tariffs_from_prices() -> None:
 # ----- rent -----
 
 
-def test_rent_get_state_extend_close() -> None:
+def test_rent_get_reserves_first_sms_confirms_and_charges_extend_close() -> None:
     mock = MockOnlineSim(balance=10)
     client = mock.client()
     rent = client.rent.get(7, 3)
-    assert (rent["tzid"], rent["number"], rent["sum"], rent["days"]) == (1, "900000001", 2.5, 3)
-    assert (rent["time"], rent["extension"], rent["messages"]) == (3 * 1440, 1, [])
-    assert rent.get("time_seconds") == 3 * 86400
+    assert (rent["tzid"], rent["number"], rent["status"], rent.get("checked")) == (1, "900000001", 0, False)
+    assert (rent["sum"], rent["days"], rent["time"], rent.get("time_seconds")) == (2.5, 0, 20, 1200)
+    assert (rent.get("rent"), rent.get("days_autoextend"), rent["extension"]) == (3, 3, 1)
+    assert (rent.get("guard_interval_remaining_seconds"), rent["messages"]) == (0, [])
     assert rent["extend"] == {"1": 1, "3": 2.5, "7": 5}
-    assert mock.balance() == 7.5
+    # reserved: the total balance stays, the price is frozen
+    assert mock.balance() == 10
+    assert client.user.balance() == {"balance": 10, "zbalance": 2.5, "income": 0}
+    assert code_of(lambda: client.rent.extend(rent["tzid"])) == "TRY_AGAIN_LATER"  # not confirmed yet
 
     mock.add_sms(rent["tzid"], "Bank: 777 888", service="bank")
     mock.add_sms(rent["tzid"], "no code here")
     state = client.rent.state_one(rent["tzid"])
+    assert (state["status"], state.get("checked"), state["days"], state["time"]) == (1, True, 3, 3 * 1440)
+    assert state.get("time_seconds") == 3 * 86400
     assert [(m["service"], m["code"]) for m in state["messages"]] == [("other", ""), ("bank", "777888")]  # newest first
+    assert mock.balance() == 7.5
+    assert client.user.balance() == {"balance": 7.5, "zbalance": 0, "income": 0}
 
     extended = client.rent.extend(rent["tzid"], 1)
-    assert (extended["days"], extended["sum"]) == (4, 3.5)
+    assert (extended["days"], extended.get("rent"), extended.get("days_autoextend"), extended["sum"]) == (4, 4, 3, 3.5)
     assert mock.balance() == 6.5
+    assert code_of(lambda: client.rent.extend(rent["tzid"], 2)) == "TRY_AGAIN_LATER"  # unknown period
+    assert code_of(lambda: client.rent.extend(999)) == "TRY_AGAIN_LATER"  # unknown tzid
 
     fixed = client.rent.get(7, 1, False)
-    assert (fixed["extension"], fixed["extend"]) == (0, {})
+    mock.add_sms(fixed["tzid"], "1234")
+    fixed_state = client.rent.state_one(fixed["tzid"])
+    assert (fixed_state["extension"], fixed_state["extend"]) == (0, {})
     assert code_of(lambda: client.rent.extend(fixed["tzid"])) == "TRY_AGAIN_LATER"
     assert [r["tzid"] for r in client.rent.state()] == [rent["tzid"], fixed["tzid"]]
 
-    client.rent.close(fixed["tzid"])
+    client.rent.close(fixed["tzid"])  # confirmed: no refund
+    assert mock.balance() == 5.5
     assert [r.tzid for r in mock.rents()] == [rent["tzid"]]
     assert code_of(lambda: client.rent.state_one(fixed["tzid"])) == "ERROR_NO_OPERATIONS"
-    assert code_of(lambda: client.rent.close(fixed["tzid"])) == "ERROR_WRONG_TZID"
+    assert code_of(lambda: client.rent.close(fixed["tzid"])) == "ERROR_NO_OPERATIONS"
+
+
+def test_rent_sum_number_in_get_string_in_state_on_the_wire() -> None:
+    mock = MockOnlineSim()
+    assert body(raw(mock, "rent/getRentNum.php?days=3"))["item"]["sum"] == 2.5
+    assert body(raw(mock, "rent/getRentState.php"))["list"][0]["sum"] == "2.50"
+
+
+def test_unconfirmed_rent_close_releases_notify_code_0_guard_interval() -> None:
+    mock = MockOnlineSim(balance=10, guard_interval=120)
+    client = mock.client()
+    rent = client.rent.get(7, 3)
+    assert rent.get("guard_interval_remaining_seconds") == 120
+    assert code_of(lambda: client.rent.close(rent["tzid"])) == "NO_COMPLETE_TZID"
+    mock.add_sms(rent["tzid"], "Messages from this sender are not accepted", service="notify")
+    state = client.rent.state_one(rent["tzid"])
+    assert (state["status"], state.get("checked"), state.get("guard_interval_remaining_seconds")) == (0, False, 0)
+    assert (state["messages"][0]["service"], state["messages"][0]["code"]) == ("notify", 0)
+    assert client.rent.close(rent["tzid"]) is True
+    assert mock.balance() == 10  # released, nothing charged
+    assert client.user.balance() == {"balance": 10, "zbalance": 0, "income": 0}
 
 
 def test_rent_errors() -> None:
     client = MockOnlineSim(balance=1.5).client()
-    assert code_of(lambda: client.rent.get(44)) == "NO_COUNTRY"
+    assert code_of(lambda: client.rent.get(44)) == "UNDEFINED_COUNTRY"
     assert code_of(lambda: client.rent.get(7, 2)) == "UNDEFINED_DAYS"
     assert code_of(lambda: client.rent.get(7, 3)) == "WARNING_LOW_BALANCE"
 
@@ -271,8 +335,9 @@ def test_rent_add_sms_after_and_tariffs() -> None:
     tzid = client.rent.get()["tzid"]
     mock.add_sms_after(tzid, "6060", 1)
     assert client.rent.state_one(tzid)["messages"] == []
-    message = client.rent.state()[0]["messages"][0]
-    assert (message["code"], message["service"]) == ("6060", "other")
+    listed = client.rent.state()[0]
+    assert listed["status"] == 1
+    assert (listed["messages"][0]["code"], listed["messages"][0]["service"]) == ("6060", "other")
     count = {"1": 100, "3": 100, "7": 100}
     assert client.rent.tariffs() == {
         "7": {
@@ -300,8 +365,9 @@ def test_profile_webhook_set_validate_clear_and_logs() -> None:
     profile = client.user.profile()
     assert (profile["id"], profile.get("apikey"), profile.get("webhook_url")) == (1, "secret", None)
     with pytest.raises(ApiError) as error:
-        client.user.set_webhook_url("ftp://x")
+        client.user.set_webhook_url("not a url")
     assert (error.value.code, error.value.message) == ("VALIDATION_ERROR", "The webhook url must be a valid URL.")
+    assert client.user.set_webhook_url("ftp://x") is True  # any scheme://... URL
     client.user.set_webhook_url("https://example.com/hook")
     last = mock.requests[-1]
     assert (last.method, last.path) == ("POST", "profile.php")
@@ -312,34 +378,63 @@ def test_profile_webhook_set_validate_clear_and_logs() -> None:
     mock.add_sms(tzid, "code 1234")
     rent = client.rent.get()
     mock.add_sms(rent["tzid"], "code 5678")
+    mock.add_sms(rent["tzid"], "no code")
     logs = client.user.webhook_logs()
-    assert (logs["total"], logs["current_page"], logs["per_page"]) == (2, 1, 10)
+    assert (logs["total"], logs["current_page"], logs["per_page"]) == (3, 1, 10)
     assert [(log["type"], log["params"]["operation_id"], log["params"]["code"]) for log in logs["data"]] == [
+        ("rent_sms", rent["tzid"], ""),
         ("rent_sms", rent["tzid"], "5678"),
         ("receiving_sms", tzid, "1234"),
     ]
+    # activation: +number, seconds left, order time; rent: digits without +, minutes left, SMS time
+    activation, rent_log = logs["data"][2]["params"], logs["data"][1]["params"]
+    assert (activation["number"], activation["time_left"], activation["time_start"]) == (
+        "+44900000001",
+        1200,
+        "2026-01-01 00:00:01",
+    )
+    assert (rent_log["number"], rent_log["time_left"], rent_log["time_start"]) == (
+        "7900000002",
+        1440,
+        "2026-01-01 00:00:03",
+    )
 
     client.user.clear_webhook_url()
     assert client.user.profile().get("webhook_url") is None
 
 
-def test_balance_includes_frozen_and_payment_history_is_empty() -> None:
+def test_balance_includes_frozen_and_payment_history_has_no_orders() -> None:
     mock = MockOnlineSim(balance=3)
     client = mock.client()
     client.numbers.get("telegram")
     assert client.user.balance() == {"balance": 3, "zbalance": 1.2, "income": 0}
     history = client.user.payment_history()
-    assert history["paylist"] == {}
+    assert (history["paylist"], history.get("forms"), history.get("buttons")) == (
+        [],
+        {"1": "Card"},
+        {"USD": [5, 10, 20]},
+    )
     assert (history["orders"]["data"], history["orders"]["total"], history["orders"]["current_page"]) == ([], 0, 1)
 
 
 def test_free_list() -> None:
     client = MockOnlineSim().client()
     uk = client.free.list()
-    assert [c["country"] for c in uk["countries"]] == [7, 44]
+    assert [c["country"] for c in uk["countries"]] == [44, 7]
     assert list(uk["numbers"]) == ["7459608320"]
-    assert (uk["messages"]["number"], uk["messages"]["country"], uk["messages"]["total"]) == ("7459608320", 44, 2)
-    assert uk["messages"]["data"][0]["code"] == "195895"
+    messages = uk["messages"]
+    assert (messages["number"], messages["country"], messages["total"], messages["per_page"]) == (
+        "7459608320",
+        44,
+        2,
+        10,
+    )
+    assert (messages["data"][0]["code"], messages["data"][0]["created_at"]) == ("195895", "2026-01-01T00:00:00.000000Z")
+    assert client.free.list(count=0)["messages"]["per_page"] == 10  # clamped to 10..500
+    assert client.free.list(count=9999)["messages"]["per_page"] == 500
+    assert client.free.list(country=999)["messages"]["country"] == 44  # unknown -> the first country
+    wire = body(raw(MockOnlineSim(), "getFreeList", key=None))
+    assert (wire["response"], wire["content"], type(wire["ignore"])) == (1, None, str)
     ru = client.free.list(country=7)
     assert (ru["messages"]["data"][0]["code"], ru["messages"]["data"][0]["my_number"]) == ("51423", "9001234567")
 

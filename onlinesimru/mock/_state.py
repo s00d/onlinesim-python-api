@@ -32,6 +32,8 @@ class MockSms:
     text: str
     code: Optional[str]
     """Code extracted from ``text`` (first run of 4-8 digits), ``None`` when there is none."""
+    at: int
+    """Seconds after the mock epoch when it arrived."""
 
 
 @dataclass
@@ -71,9 +73,14 @@ class MockRent:
     number: str
     """Number without the country code, as the backend sends it for rents."""
     days: int
+    """Total rent days: the initial period plus extensions."""
     sum: float
-    """Total paid, USD."""
+    """Total cost incl. extensions, USD. Frozen while ``status`` is 0."""
     extension: bool
+    initial_days: int
+    """The initial period (``days`` of getRentNum)."""
+    status: int = 0
+    """``0``: reserved, waiting for the first SMS; ``1``: confirmed by an SMS that is not ``notify``, price charged."""
     messages: List[MockRentSms] = field(default_factory=list)
     """Oldest first."""
 
@@ -120,6 +127,10 @@ DEFAULT_RENT_TARIFFS: Mapping[int, MockRentTariff] = {
 MOCK_USER_ID = 1
 OPERATION_TIME = 1200
 """Seconds an operation stays open, as reported in ``time``. The mock has no clock, so it never runs down."""
+RENT_FIRST_SMS_MINUTES = 20
+"""Minutes an unconfirmed rent waits for its first SMS (``stop_time`` = start + this)."""
+NOTIFY = "notify"
+"""Sender of a rent SMS from a prohibited sender: it gets the integer ``code`` ``0`` and does not confirm the rent."""
 
 _EPOCH = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -177,7 +188,7 @@ class MockState:
         self.balance = 0
         """Total balance incl. the frozen part, mills."""
         self.frozen = 0
-        """Frozen by open operations, mills."""
+        """Frozen by open operations and unconfirmed rents, mills."""
         self.operations: Dict[int, MockOperation] = {}
         self.rents: Dict[int, MockRent] = {}
         self.webhook_url: Optional[str] = None
@@ -226,17 +237,27 @@ class MockState:
         code = extract_code(text)
         op = self.operations.get(tzid)
         if op is not None and op.status != "TZ_OVER_OK":
-            sms = MockSms(op.service if service is None else service, text, code)
+            sms = MockSms(op.service if service is None else service, text, code, self.seq)
             op.messages.append(sms)
             op.status = "TZ_NUM_ANSWER"
-            self._webhook("receiving_sms", tzid, op.country, op.number, sms)
+            # Activation: `+<digits>`, seconds left, the order time.
+            self._webhook("receiving_sms", tzid, op.country, op.number, sms, OPERATION_TIME, stamp(op.tzid))
             return True
         rent = self.rents.get(tzid)
         if rent is not None:
             id_ = self.next_id()
-            rent_sms = MockRentSms("other" if service is None else service, text, code, id_, stamp(id_))
+            rent_sms = MockRentSms("other" if service is None else service, text, code, id_, id_, stamp(id_))
             rent.messages.append(rent_sms)
-            self._webhook("rent_sms", tzid, rent.country, rent.number, rent_sms)
+            if rent.status == 0 and rent_sms.service != NOTIFY:
+                # The first real SMS confirms the rent: the reservation is charged.
+                cost = to_mills(rent.sum)
+                self.frozen -= cost
+                self.balance -= cost
+                rent.status = 1
+            # Rent: full number in digits without `+`, minutes left, the SMS time.
+            minutes_left = rent.days * 24 * 60 if rent.status == 1 else RENT_FIRST_SMS_MINUTES
+            number = f"{rent.country}{rent.number}"
+            self._webhook("rent_sms", tzid, rent.country, number, rent_sms, minutes_left, stamp(id_))
             return True
         return False
 
@@ -260,11 +281,13 @@ class MockState:
         for s in due:
             self.deliver(tzid, s.text, s.service)
 
-    def _webhook(self, type_: str, tzid: int, country: int, number: str, sms: MockSms) -> None:
+    def _webhook(
+        self, type_: str, tzid: int, country: int, number: str, sms: MockSms, time_left: int, time_start: str
+    ) -> None:
         """No HTTP call: the mock only records what the backend would have sent."""
         if not self.webhook_url:
             return
-        time = stamp(self.seq)
+        time = stamp(sms.at)
         self.webhook_logs.append(
             {
                 "id": len(self.webhook_logs) + 1,
@@ -279,9 +302,9 @@ class MockState:
                     "number": number,
                     "sender": sms.service,
                     "message": sms.text,
-                    "code": sms.code,
-                    "time_start": time,
-                    "time_left": OPERATION_TIME,
+                    "code": sms.code or "",
+                    "time_start": time_start,
+                    "time_left": time_left,
                 },
                 "status": "success",
                 "error": None,

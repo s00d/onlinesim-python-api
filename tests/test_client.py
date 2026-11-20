@@ -63,17 +63,25 @@ class TestResponseHandling:
         assert info.value.message == "No numbers available for this service right now"
         assert str(info.value) == info.value.message
 
-    def test_no_number_for_forward(self) -> None:
-        client, _ = fake_client(Reply({"response": "NO_NUMBER_FOR_FORWARD"}))
-        with pytest.raises(NoNumberError):
-            client.numbers.get("google")
+    def test_http_429_try_again_later_is_api_error(self) -> None:
+        client, _ = fake_client(Reply({"response": "TRY_AGAIN_LATER"}, status=429))
+        with pytest.raises(ApiError) as info:
+            client.numbers.state()
+        assert not isinstance(info.value, TransportError)
+        assert info.value.code == "TRY_AGAIN_LATER"
+
+    def test_missing_key_http_200_wrong_key_is_api_error(self) -> None:
+        client, _ = fake_client(Reply({"response": "ERROR_WRONG_KEY"}), api_key=None)
+        with pytest.raises(ApiError) as info:
+            client.user.balance()
+        assert (info.value.code, info.value.message) == ("ERROR_WRONG_KEY", "Wrong or missing API key")
 
     def test_http_456_wrong_key_is_api_error(self) -> None:
         client, _ = fake_client(Reply({"response": "ERROR_WRONG_KEY"}, status=456))
         with pytest.raises(ApiError) as info:
             client.user.balance()
         assert not isinstance(info.value, TransportError)
-        assert (info.value.code, info.value.message) == ("ERROR_WRONG_KEY", "Wrong API key")
+        assert (info.value.code, info.value.message) == ("ERROR_WRONG_KEY", "Wrong or missing API key")
 
     def test_server_message_unless_it_echoes_the_code(self) -> None:
         client, _ = fake_client(

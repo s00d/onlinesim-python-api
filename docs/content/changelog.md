@@ -7,6 +7,12 @@ navigation:
 
 The full history is in [CHANGELOG.md](https://github.com/s00d/onlinesim-python-api/blob/master/CHANGELOG.md).
 
+## 3.1.1
+
+- Fixed: `wait_code` no longer crashes on an operation without `response`; types against the current API (`Profile` `number`/`country`, optional `Operation["response"]`, `RentSms["code"]` `0` for `notify` SMS, nullable free-list and payment fields); `payment_history()["paylist"]` is kept when it arrives as a list.
+- `wait_code` retries `TRY_AGAIN_LATER` (rate limit), `ERROR_UNDEFINED` and `INTERVAL_CONCURRENT_REQUESTS_ERROR`.
+- `MockOnlineSim` follows the backend more closely: rent reservation and confirmation, `setOperationRevise` and `closeRentNum` answers, missing vs wrong key — see [Testing](/testing).
+
 ## 3.1.0
 
 - New: `MockOnlineSim`, an offline fake of the API for your tests — see [Testing](/testing).

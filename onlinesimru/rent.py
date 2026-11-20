@@ -20,7 +20,8 @@ class RentApi:
         self._request = request
 
     def get(self, country: int = 7, days: int = 1, extension: bool = True) -> RentItem:
-        """Rent a number for ``days`` days. ``extension=False`` makes the rent non-extendable for good."""
+        """Rent a number for ``days`` days. The price is reserved; the first SMS that is not ``notify`` confirms the
+        rent and charges it. ``extension=False`` makes the rent non-extendable for good."""
         res = self._request(
             "rent/getRentNum.php", {"country": country, "days": days, "extension": extension, **_DETAIL}
         )
@@ -39,7 +40,7 @@ class RentApi:
         return _rent_item(res["list"][0])
 
     def extend(self, tzid: int, days: int = 1) -> RentItem:
-        """Extend a rent by ``days`` days (only rents created with ``extension=True``)."""
+        """Extend a rent by ``days`` days and charge at once (only confirmed rents created with ``extension=True``)."""
         res = self._request("rent/extendRentState.php", {"tzid": tzid, "days": days, **_DETAIL})
         return _rent_item(res["item"])
 
